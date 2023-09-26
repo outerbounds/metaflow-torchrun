@@ -8,11 +8,11 @@ class HelloTorchrun(FlowSpec):
     def start(self):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
-    @batch(memory=12228, image="pytorch/pytorch:latest")
-    @torchrun_parallel(entrypoint="hi-torchrun.py")
+    @kubernetes(image="pytorch/pytorch:latest")
+    @torchrun_parallel(master_port="3339")
     @step
     def torch_multinode(self):
-        print("Optional post-processing from the %s step function." % current.step_name)
+        current.torch.run(entrypoint="hi-torchrun.py")
         self.next(self.join)
 
     @step

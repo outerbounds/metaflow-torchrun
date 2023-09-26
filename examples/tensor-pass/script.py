@@ -32,10 +32,7 @@ def get_device(backend="gloo"):
     return torch.device(device)
 
 
-def blocking_comms(backend):
-    """
-    Blocking means the process will wait until the send/recv is complete.
-    """
+def send_tensor(backend):
 
     # Wait until all processes reach this point.
     torch.distributed.barrier()
@@ -70,7 +67,7 @@ def init_processes(backend):
     dist.init_process_group(backend, rank=WORLD_RANK, world_size=WORLD_SIZE)
 
     # Call sample end user torch distributed code.
-    blocking_comms(backend)
+    send_tensor(backend)
     dist.destroy_process_group()
 
 

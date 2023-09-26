@@ -11,17 +11,17 @@ class TorchrunDDP(FlowSpec):
 
     @environment(vars = {"NCCL_SOCKET_IFNAME": "eth0"}) 
     @kubernetes(image="eddieob/hello-torchrun:12", gpu=N_GPU)
-    @torchrun_parallel(
-        entrypoint="multinode_trainer.py", # No changes made to original demo script.
-        entrypoint_args={
-            "total-epochs": 2,
-            "batch-size": 32,
-            "save-every": 1
-        }
-    )
+    @torchrun_parallel
     @step
     def torch_multinode(self):
-        print("Optional post-processing from the %s step function." % current.step_name)
+        current.torch.run(
+            entrypoint="multinode_trainer.py", 
+            entrypoint_args={
+                "total-epochs": 2,
+                "batch-size": 32,
+                "save-every": 1
+            }
+        )
         self.next(self.join)
 
     @step

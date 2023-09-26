@@ -21,25 +21,25 @@ class TorchRunExecutor:
                  ) -> None:
         
         self.torchrun_args = {
-            "rdzv-id": pathspec,
+            "rdzv-id": "123",
             "rdzv_endpoint": "%s:%s" % (main_addr, main_port),
             "nnodes": num_nodes, 
             "master_addr": main_addr,
             "master_port": main_port, # batch doesn't matter. k8s depends on port opened in @kubernetes jobset. 
             "node_rank": node_index,
             "rdzv-backend": "c10d",
-            # TODO add max-restarts
+            "max-restarts": 3
         }
     
-    def run(self, entrypoint, entry_point_args=None, entrypoint_args_raw=None, nproc_per_node=1):
+    def run(self, entrypoint,  entrypoint_args=None, entrypoint_args_raw=None, nproc_per_node=1):
         """
         `entry_point_args` : Dict | None
         `entrypoint_args_raw` : List[str] | None
             Either `entry_point_args` or `entrypoint_args_raw` must be provided. Both cannot be provided.
         """
-        if entry_point_args is not None and entrypoint_args_raw is not None:
+        if entrypoint_args is not None and entrypoint_args_raw is not None:
             raise ValueError("Only one of `entry_point_args` or `entrypoint_args_raw` can be provided.")
-        
+
         self._ensure_torch_installed()
         cmd = ["torchrun"] 
         
@@ -47,12 +47,13 @@ class TorchRunExecutor:
             cmd.extend(["--%s" % arg, str(val)])
         cmd.append(entrypoint)
         
-        if entry_point_args is not None:
-            for arg, val in entry_point_args.items():
+        if entrypoint_args is not None:
+            for arg, val in entrypoint_args.items():
                 cmd.extend(["--%s" % arg, str(val)])
         elif entrypoint_args_raw is not None:
             cmd.extend(entrypoint_args_raw)
         
+        print(" ".join(cmd))
         subprocess.run(cmd, check=True)
 
     
@@ -67,8 +68,7 @@ class TorchrunDecoratorParallel(ParallelDecorator):
 
     name = "torchrun_parallel"
     defaults = {
-        "master_port": None,
-        "all_nodes_started_timeout": 300
+        "master_port": "3339",
     }
     IS_PARALLEL = True
 

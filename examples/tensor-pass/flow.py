@@ -10,11 +10,11 @@ class TorchrunTensorPass(FlowSpec):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
     @environment(vars = {"NCCL_SOCKET_IFNAME": "eth0"}) 
-    @batch(image="eddieob/hello-torchrun:12", gpu=N_GPU)
-    @torchrun_parallel(entrypoint="script.py")
+    @kubernetes(image="eddieob/hello-torchrun:12", gpu=N_GPU)
+    @torchrun_parallel
     @step
     def torch_multinode(self):
-        print("Optional post-processing from the %s step function." % current.step_name)
+        current.torch.run(entrypoint="script.py")
         self.next(self.join)
 
     @step

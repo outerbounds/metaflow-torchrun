@@ -8,7 +8,7 @@ gpt_config:
   n_head: 8
   n_embd: 512
 trainer_config:
-  max_epochs: 10
+  max_epochs: 2
   batch_size: 216
   data_loader_workers: 4
   grad_norm_clip: 1.0

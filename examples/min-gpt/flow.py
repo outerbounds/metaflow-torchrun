@@ -1,4 +1,4 @@
-from metaflow import FlowSpec, step, torchrun_parallel, current, batch, kubernetes, environment
+from metaflow import FlowSpec, step, torchrun_parallel, current, batch, kubernetes, environment, card, parallel
 from decorators import gpu_profile
 
 N_NODES = 4
@@ -13,15 +13,12 @@ class MinGPT(FlowSpec):
     def start(self):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
-    # @gpu_profile(interval=1)
-    @kubernetes(image="eddieob/min-gpt:2", cpu=N_CPU, gpu=N_GPU, memory=MEMORY, disk=DISK)
-    @torchrun_parallel(
-        torchrun_args={"nproc_per_node": N_GPU}, # override defaults
-        entrypoint="main.py"
-    )
+    @gpu_profile(interval=1)
+    @kubernetes(image="eddieob/min-gpt:3", cpu=N_CPU, gpu=N_GPU, memory=MEMORY, disk=DISK)
+    @torchrun_parallel
     @step
     def torch_multinode(self):
-        print("Optional post-processing from the %s step function." % current.step_name)
+        current.torch.run(entrypoint="main.py", nproc_per_node=N_GPU)
         self.next(self.join)
 
     @step
