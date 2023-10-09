@@ -33,7 +33,6 @@ def get_device(backend="gloo"):
 
 
 def send_tensor(backend):
-
     # Wait until all processes reach this point.
     torch.distributed.barrier()
 
@@ -62,7 +61,6 @@ def send_tensor(backend):
 
 
 def init_processes(backend):
-
     # A magic torch function to ensure processes can coordinate with master.
     dist.init_process_group(backend, rank=WORLD_RANK, world_size=WORLD_SIZE)
 
@@ -72,7 +70,6 @@ def init_processes(backend):
 
 
 if __name__ == "__main__":
-
     if torch.cuda.is_available():
         default_backend = "nccl"
     else:

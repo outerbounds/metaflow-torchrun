@@ -2,8 +2,8 @@ from metaflow import FlowSpec, step, torchrun_parallel, current, batch, kubernet
 
 N_NODES = 2
 
-class HelloTorchrun(FlowSpec):
 
+class HelloTorchrun(FlowSpec):
     @step
     def start(self):
         self.next(self.torch_multinode, num_parallel=N_NODES)
@@ -22,6 +22,7 @@ class HelloTorchrun(FlowSpec):
     @step
     def end(self):
         pass
-        
+
+
 if __name__ == "__main__":
     HelloTorchrun()

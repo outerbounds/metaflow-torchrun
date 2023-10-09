@@ -16,6 +16,7 @@ def ddp_setup():
     init_process_group(backend="nccl")
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
 
+
 class Trainer:
     def __init__(
         self,
@@ -55,7 +56,9 @@ class Trainer:
 
     def _run_epoch(self, epoch):
         b_sz = len(next(iter(self.train_data))[0])
-        print(f"[GPU{self.global_rank}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}")
+        print(
+            f"[GPU{self.global_rank}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)}"
+        )
         self.train_data.sampler.set_epoch(epoch)
         for source, targets in self.train_data:
             source = source.to(self.local_rank)
@@ -90,11 +93,16 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
         batch_size=batch_size,
         pin_memory=True,
         shuffle=False,
-        sampler=DistributedSampler(dataset)
+        sampler=DistributedSampler(dataset),
     )
 
 
-def main(save_every: int, total_epochs: int, batch_size: int, snapshot_path: str = "snapshot.pt"):
+def main(
+    save_every: int,
+    total_epochs: int,
+    batch_size: int,
+    snapshot_path: str = "snapshot.pt",
+):
     ddp_setup()
     dataset, model, optimizer = load_train_objs()
     train_data = prepare_dataloader(dataset, batch_size)
@@ -105,10 +113,20 @@ def main(save_every: int, total_epochs: int, batch_size: int, snapshot_path: str
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description='simple distributed training job')
-    parser.add_argument('--total-epochs', default=3, type=int, help='Total epochs to train the model')
-    parser.add_argument('--save-every', default=1, type=int, help='How often to save a snapshot')
-    parser.add_argument('--batch-size', default=32, type=int, help='Input batch size on each device (default: 32)')
+
+    parser = argparse.ArgumentParser(description="simple distributed training job")
+    parser.add_argument(
+        "--total-epochs", default=3, type=int, help="Total epochs to train the model"
+    )
+    parser.add_argument(
+        "--save-every", default=1, type=int, help="How often to save a snapshot"
+    )
+    parser.add_argument(
+        "--batch-size",
+        default=32,
+        type=int,
+        help="Input batch size on each device (default: 32)",
+    )
     args = parser.parse_args()
-    
+
     main(args.save_every, args.total_epochs, args.batch_size)
