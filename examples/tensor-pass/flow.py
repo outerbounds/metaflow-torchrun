@@ -3,7 +3,7 @@ from metaflow import FlowSpec, step, torchrun_parallel, current, batch, kubernet
 N_NODES = 2
 N_GPU = 1
 
-class TorchrunTensorPass(FlowSpec):
+class CoreweaveTorchrunTensorPass(FlowSpec):
 
     @step
     def start(self):
@@ -26,4 +26,4 @@ class TorchrunTensorPass(FlowSpec):
         pass
         
 if __name__ == "__main__":
-    TorchrunTensorPass()
+    CoreweaveTorchrunTensorPass()

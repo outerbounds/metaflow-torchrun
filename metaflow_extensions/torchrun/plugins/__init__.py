@@ -31,7 +31,7 @@ class TorchRunExecutor:
             "max-restarts": 3
         }
     
-    def run(self, entrypoint,  entrypoint_args=None, entrypoint_args_raw=None, nproc_per_node=1):
+    def run(self, entrypoint, entrypoint_args=None, entrypoint_args_raw=None, nproc_per_node=1):
         """
         `entry_point_args` : Dict | None
         `entrypoint_args_raw` : List[str] | None
@@ -41,7 +41,7 @@ class TorchRunExecutor:
             raise ValueError("Only one of `entry_point_args` or `entrypoint_args_raw` can be provided.")
 
         self._ensure_torch_installed()
-        cmd = ["torchrun"] 
+        cmd = ["torchrun"]
         
         for arg, val in dict(**self.torchrun_args, nproc_per_node=nproc_per_node).items():
             cmd.extend(["--%s" % arg, str(val)])
@@ -53,8 +53,24 @@ class TorchRunExecutor:
         elif entrypoint_args_raw is not None:
             cmd.extend(entrypoint_args_raw)
         
-        print(" ".join(cmd))
-        subprocess.run(cmd, check=True)
+        try:
+            with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
+                while process.poll() is None:
+                    stdout = process.stdout.read1() #+ b'=='
+                    try:
+                        text = stdout.decode("utf-8")
+                    except UnicodeDecodeError:
+                        # TODO: This print feels bad, maybe remove - even better, 
+                        # figure out how to handle the edge decoding cases gracefully.
+                        # print("UnicodeDecodeError, skipping decoding of problematic bytes: %s" % stdout)
+                        text=''
+                    
+                    print(text, end='', flush=True)
+                    # TODO (Eddie): what is strat for dynamic cards? stuff `text` somewhere?
+
+        except subprocess.CalledProcessError as e:
+            print(e.stdout)
+            raise e
 
     
     def _ensure_torch_installed(self):

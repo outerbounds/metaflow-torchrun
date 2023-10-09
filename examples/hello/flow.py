@@ -9,7 +9,7 @@ class HelloTorchrun(FlowSpec):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
     @kubernetes(image="pytorch/pytorch:latest")
-    @torchrun_parallel(master_port="3339")
+    @torchrun_parallel
     @step
     def torch_multinode(self):
         current.torch.run(entrypoint="hi-torchrun.py")
