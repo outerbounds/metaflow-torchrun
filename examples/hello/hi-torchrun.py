@@ -1,9 +1,11 @@
 import torch.distributed as dist
+import torch
 
 if __name__ == "__main__":
-
     # initialize the process group
     dist.init_process_group(backend="gloo")
+
+    torch.distributed.barrier()
 
     # get the rank and size
     rank = dist.get_rank()

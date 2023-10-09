@@ -1,6 +1,6 @@
 from setuptools import setup, find_namespace_packages
 
-version = "0.0.1"
+version = "0.0.2"
 
 setup(
     name="metaflow-torchrun",
@@ -12,7 +12,5 @@ setup(
     py_modules=[
         "metaflow_extensions",
     ],
-    install_requires=[
-         "metaflow"
-    ]
+    install_requires=["metaflow"],
 )
