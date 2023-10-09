@@ -10,7 +10,7 @@ class CoreweaveTorchrunTensorPass(FlowSpec):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
     @environment(vars = {"NCCL_SOCKET_IFNAME": "eth0"}) 
-    @kubernetes(image="eddieob/hello-torchrun:12", gpu=N_GPU)
+    @batch(image="eddieob/hello-torchrun:12", gpu=N_GPU)
     @torchrun_parallel
     @step
     def torch_multinode(self):

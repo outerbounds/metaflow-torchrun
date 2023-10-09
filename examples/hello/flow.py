@@ -8,7 +8,7 @@ class HelloTorchrun(FlowSpec):
     def start(self):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
-    @kubernetes(image="pytorch/pytorch:latest")
+    @batch(image="pytorch/pytorch:latest")
     @torchrun_parallel
     @step
     def torch_multinode(self):
