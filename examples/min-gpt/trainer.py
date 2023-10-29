@@ -16,6 +16,7 @@ from torch.utils.data.distributed import DistributedSampler
 import boto3
 from urllib.parse import urlparse
 import fsspec
+import socket
 import io
 
 
@@ -77,6 +78,7 @@ class Trainer:
         self._load_snapshot()
         # wrap with DDP. this step will synch model across all the processes.
         self.model = DDP(self.model, device_ids=[self.local_rank])
+        self.ip = socket.gethostbyname(socket.gethostname())
 
     def _prepare_dataloader(self, dataset: Dataset):
         return DataLoader(
@@ -136,7 +138,7 @@ class Trainer:
             batch_loss = self._run_batch(source, targets, train)
             if iter % 100 == 0:
                 print(
-                    f"[GPU{self.global_rank}] Epoch {epoch} | Iter {iter} | {step_type} Loss {batch_loss:.5f}"
+                    f"[IP - {self.ip}] [GPU - {self.global_rank}] Epoch {epoch} | Iter {iter} | {step_type} Loss {batch_loss:.5f}"
                 )
 
     def _save_snapshot(self, epoch):
