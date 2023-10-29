@@ -1,7 +1,7 @@
 from metaflow import (
     FlowSpec,
     step,
-    torchrun_parallel,
+    torchrun,
     current,
     batch,
     kubernetes,
@@ -9,12 +9,11 @@ from metaflow import (
 )
 from decorators import gpu_profile
 
-N_NODES = 4
-N_GPU = 6
+N_NODES = 2
+N_GPU = 8
 N_CPU = 48
 MEMORY = 32000
-DISK = 96000
-
+SHARED_MEMORY = 4096
 
 class MinGPT(FlowSpec):
     @step
@@ -23,9 +22,8 @@ class MinGPT(FlowSpec):
 
     @environment(vars={"NCCL_SOCKET_IFNAME": "eth0"})
     @gpu_profile(interval=1)
-    # @kubernetes(image="eddieob/min-gpt:3", cpu=N_CPU, gpu=N_GPU, memory=MEMORY, disk=DISK)
-    @batch(image="eddieob/min-gpt:3", cpu=N_CPU, gpu=N_GPU, memory=MEMORY)
-    @torchrun_parallel
+    @batch(image="eddieob/min-gpt:3", cpu=N_CPU, gpu=N_GPU, memory=MEMORY, shared_memory=SHARED_MEMORY)
+    @torchrun
     @step
     def torch_multinode(self):
         current.torch.run(entrypoint="main.py", nproc_per_node=N_GPU)

@@ -8,7 +8,7 @@ pip install metaflow-torchrun
 
 And then you can import it and use in parallel steps:
 ```
-from metaflow import FlowSpec, step, torchrun_parallel
+from metaflow import FlowSpec, step, torchrun
 
 ...
 class MinGPT(FlowSpec):
@@ -18,7 +18,7 @@ class MinGPT(FlowSpec):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
     @kubernetes(image="<YOUR-REGISTRY>/min-gpt:2", cpu=N_CPU, gpu=N_GPU, memory=MEMORY, disk=DISK)
-    @torchrun_parallel(
+    @torchrun(
         torchrun_args={"nproc_per_node": N_GPU},
         entrypoint="main.py" # No changes made to original demo script.
     )

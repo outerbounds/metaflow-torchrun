@@ -1,7 +1,7 @@
 from metaflow import (
     FlowSpec,
     step,
-    torchrun_parallel,
+    torchrun,
     current,
     batch,
     kubernetes,
@@ -19,7 +19,7 @@ class CoreweaveTorchrunTensorPass(FlowSpec):
 
     @environment(vars={"NCCL_SOCKET_IFNAME": "eth0"})
     @batch(image="eddieob/hello-torchrun:12", gpu=N_GPU)
-    @torchrun_parallel
+    @torchrun
     @step
     def torch_multinode(self):
         current.torch.run(entrypoint="script.py")
