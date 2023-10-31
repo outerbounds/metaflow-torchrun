@@ -7,17 +7,13 @@ from metaflow.exception import MetaflowException
 from metaflow import current
 from functools import partial
 import subprocess
-import logging
 import socket
 import time
 import json
 import sys
 import os
 
-
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 NODE_STARTED_VAR = "torchrun_node_started"
-
 
 class TorchRunExecutor:
     def __init__(
@@ -62,7 +58,7 @@ class TorchRunExecutor:
         elif entrypoint_args_raw is not None:
             cmd.extend(entrypoint_args_raw)
 
-        logging.info("[IP - %s] %s" % (socket.gethostbyname(socket.gethostname()), " ".join(cmd)))
+        # logging.info("[IP - %s] %s" % (socket.gethostbyname(socket.gethostname()), " ".join(cmd)))
 
         try:
             with subprocess.Popen(
@@ -130,23 +126,6 @@ class TorchrunDecoratorParallel(ParallelDecorator):
                 if not self.nproc_per_node > 0:
                     self.nproc_per_node = int(compute_deco_attrs["cpu"])
                 break
-
-    # def task_pre_step(
-    #     self,
-    #     step_name,
-    #     task_datastore,
-    #     metadata,
-    #     run_id,
-    #     task_id,
-    #     flow,
-    #     graph,
-    #     retry_count,
-    #     max_user_code_retries,
-    #     ubf_context,
-    #     inputs,
-    # ):
-        # self._setup_current(main_addr, self.attributes["master_port"], ubf_context, num_nodes, node_index)
-        # self._setup_current(self.attributes["master_port"], ubf_context)
 
     def task_decorate(
         self, step_func, flow, graph, retry_count, max_user_code_retries, ubf_context
