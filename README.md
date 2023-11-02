@@ -45,10 +45,10 @@ class MyGPT(FlowSpec):
 
 | Directory | torch script description |
 | :--- | ---: |
-| [Hello](examples/hello/flow.py) | Each process prints their rank and the world size. |  
-| [Tensor pass](examples/tensor-pass/flow.py) | Main process passes a tensor to the workers. |  
-| [Torch DDP](examples/torch-ddp/flow.py) | A flow that uses a [script from the torchrun tutorials](https://pytorch.org/tutorials/intermediate/ddp_series_multinode.html) on multi-node DDP. |  
-| [MinGPT](examples/min-gpt/flow.py) | A flow that runs a [torchrun GPT demo](https://pytorch.org/tutorials/intermediate/ddp_series_minGPT.html) that simplifies [Karpathy's minGPT](https://github.com/karpathy/minGPT) in a set of parallel Metaflow tasks each contributing their `@resources`. |
+| [Hello](examples/hello/README.md) | Each process prints their rank and the world size. |  
+| [Tensor pass](examples/tensor-pass/README.md) | Main process passes a tensor to the workers. |  
+| [Torch DDP](examples/torch-ddp/README.md) | A flow that uses a [script from the torchrun tutorials](https://pytorch.org/tutorials/intermediate/ddp_series_multinode.html) on multi-node DDP. |  
+| [MinGPT](examples/min-gpt/README.md) | A flow that runs a [torchrun GPT demo](https://pytorch.org/tutorials/intermediate/ddp_series_minGPT.html) that simplifies [Karpathy's minGPT](https://github.com/karpathy/minGPT) in a set of parallel Metaflow tasks each contributing their `@resources`. |
 
 ### License 
 `metaflow-torchrun` is distributed under the <u>Apache License</u>.
