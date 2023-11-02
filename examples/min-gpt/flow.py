@@ -15,6 +15,7 @@ N_CPU = 48
 MEMORY = 32000
 SHARED_MEMORY = 4096
 
+
 class MinGPT(FlowSpec):
     @step
     def start(self):
@@ -22,7 +23,13 @@ class MinGPT(FlowSpec):
 
     @environment(vars={"NCCL_SOCKET_IFNAME": "eth0"})
     @gpu_profile(interval=1)
-    @batch(image="eddieob/min-gpt:3", cpu=N_CPU, gpu=N_GPU, memory=MEMORY, shared_memory=SHARED_MEMORY)
+    @batch(
+        image="eddieob/min-gpt:3",
+        cpu=N_CPU,
+        gpu=N_GPU,
+        memory=MEMORY,
+        shared_memory=SHARED_MEMORY,
+    )
     @torchrun
     @step
     def torch_multinode(self):

@@ -15,6 +15,7 @@ import os
 
 NODE_STARTED_VAR = "torchrun_node_started"
 
+
 class TorchRunExecutor:
     def __init__(
         self, pathspec, main_addr, main_port, num_nodes, node_index, nproc_per_node=1
@@ -31,7 +32,13 @@ class TorchRunExecutor:
         }
         self.nproc_per_node = nproc_per_node
 
-    def run(self, entrypoint, entrypoint_args=None, entrypoint_args_raw=None, nproc_per_node=None):
+    def run(
+        self,
+        entrypoint,
+        entrypoint_args=None,
+        entrypoint_args_raw=None,
+        nproc_per_node=None,
+    ):
         """
         User-facing function that calls the torchrun command.
         `entry_point_args` : Dict | None
@@ -112,8 +119,8 @@ class TorchrunDecoratorParallel(ParallelDecorator):
         current._update_env({"torch": torch_executor})
 
     def step_init(self, flow, graph, step, decos, environment, flow_datastore, logger):
-
         from metaflow.plugins.aws.aws_utils import compute_resource_attributes
+
         for deco in decos:
             if deco.name in ["resources", "kubernetes", "batch"]:
                 compute_deco_attrs = compute_resource_attributes(
@@ -182,12 +189,18 @@ class TorchrunDecoratorParallel(ParallelDecorator):
             node_index = int(os.environ["RANK"])
             if ubf_context != UBF_CONTROL:
                 node_index += 1  # artifact of kubernetes jobset in experimental Kubernetes parallel implementation. TBD.
-                main_addr = os.environ["MASTER_ADDR"]   
+                main_addr = os.environ["MASTER_ADDR"]
             else:
-                main_addr = socket.gethostbyname(socket.gethostname()) 
+                main_addr = socket.gethostbyname(socket.gethostname())
         node_key = os.path.join(NODE_STARTED_VAR, "node_%s.json" % node_index)
 
-        self._setup_current(main_addr, self.attributes["master_port"], ubf_context, num_nodes, node_index)
+        self._setup_current(
+            main_addr,
+            self.attributes["master_port"],
+            ubf_context,
+            num_nodes,
+            node_index,
+        )
 
         # alert community about my node info
         s3.put(node_key, json.dumps({"node_started": True}))

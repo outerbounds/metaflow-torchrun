@@ -3,7 +3,6 @@ import torch
 import os
 
 if __name__ == "__main__":
-
     # initialize the process group
     dist.init_process_group(backend="gloo")
 
