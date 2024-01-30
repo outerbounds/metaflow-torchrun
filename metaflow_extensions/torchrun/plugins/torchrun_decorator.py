@@ -21,14 +21,14 @@ class TorchRunExecutor:
         self, pathspec, main_addr, main_port, num_nodes, node_index, nproc_per_node=1
     ) -> None:
         self.torchrun_args = {
-            "rdzv-id": "123",
-            "rdzv_endpoint": "%s:%s" % (main_addr, main_port),
+            # "rdzv-id": "123",
+            # "rdzv_endpoint": "%s:%s" % (main_addr, main_port),
             "nnodes": num_nodes,
             "master_addr": main_addr,
             "master_port": main_port,
             "node_rank": node_index,
-            "rdzv-backend": "c10d",
-            "max-restarts": 3,
+            # "rdzv-backend": "c10d",
+            # "max-restarts": 3,
         }
         self.nproc_per_node = nproc_per_node
 
@@ -38,6 +38,7 @@ class TorchRunExecutor:
         entrypoint_args=None,
         entrypoint_args_raw=None,
         nproc_per_node=None,
+        master_port=None
     ):
         """
         User-facing function that calls the torchrun command.
@@ -53,6 +54,10 @@ class TorchRunExecutor:
         self._ensure_torch_installed()
         cmd = ["torchrun"]
 
+        if master_port is not None:
+            self.torchrun_args['master_port'] = master_port
+            self.torchrun_args['rdzv_endpoint'] = "%s:%s" % (self.torchrun_args['master_addr'], master_port)
+
         for arg, val in dict(
             **self.torchrun_args, nproc_per_node=nproc_per_node or self.nproc_per_node
         ).items():
@@ -61,11 +66,16 @@ class TorchRunExecutor:
 
         if entrypoint_args is not None:
             for arg, val in entrypoint_args.items():
-                cmd.extend(["--%s" % arg, str(val)])
+                if val == "" or val == None:
+                    cmd.append("--%s" % arg)
+                else:
+                    cmd.extend(["--%s" % arg, str(val)])
         elif entrypoint_args_raw is not None:
             cmd.extend(entrypoint_args_raw)
 
         # logging.info("[IP - %s] %s" % (socket.gethostbyname(socket.gethostname()), " ".join(cmd)))
+
+        print(" ".join(cmd))
 
         try:
             with subprocess.Popen(
@@ -124,10 +134,17 @@ class TorchrunDecoratorParallel(ParallelDecorator):
         for deco in decos:
             if deco.name in ["resources", "kubernetes", "batch"]:
                 compute_deco_attrs = compute_resource_attributes(
-                    decos, deco, {"cpu": "1", "gpu": "0"}
+                    decos, deco, {"cpu": "1", "gpu": "0", "inferentia": "0"}
                 )
                 try:
-                    self.nproc_per_node = int(compute_deco_attrs["gpu"])
+                    if "inferentia" in compute_deco_attrs:
+                        self.nproc_per_node = int(
+                            compute_deco_attrs["inferentia"]
+                        ) * 2 # each trainium/inferentia device has 2 cores
+                    elif "gpu" in compute_deco_attrs:
+                        self.nproc_per_node = int(compute_deco_attrs["gpu"])
+                    else:
+                        self.nproc_per_node = int(compute_deco_attrs["cpu"])
                 except KeyError:
                     self.nproc_per_node = int(compute_deco_attrs["cpu"])
                 if not self.nproc_per_node > 0:
