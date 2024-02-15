@@ -16,7 +16,22 @@ import os
 NODE_STARTED_VAR = "torchrun_node_started"
 
 
-class TorchRunExecutor:
+class TorchrunExecutor:
+
+    """
+    Instances of the TorchrunExecutor class are used to run the torchrun command.
+    There is one per Metaflow @step annotated with @torchrun.
+
+    TorchrunExecutor takes in information about this run based on the Metaflow config, 
+    so users declare the infrastructure Metaflow dynamically spins up for them in one place, 
+    and then the TorchrunExecutor uses that information to configure the distributed parts of the torchrun command accordingly.
+
+    The Torchrun decorator, which users specify in a Metaflow num_parallel task with @torchrun, attaches an instance of this class to the current object.
+    Using current.torch.run() will then run the torchrun command with the appropriate arguments.
+
+    This class will handle opening the subprocess, and ensuring other typical Metaflow functionality works as expected.
+    """
+
     def __init__(
         self, pathspec, main_addr, main_port, num_nodes, node_index, nproc_per_node=1
     ) -> None:
@@ -77,21 +92,21 @@ class TorchRunExecutor:
 
         print(" ".join(cmd))
 
-        try:
-            with subprocess.Popen(
-                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
-            ) as process:
-                while process.poll() is None:
-                    stdout = process.stdout.read1()
-                    try:
-                        text = stdout.decode("utf-8")
-                    except UnicodeDecodeError:
-                        text = ""
-                    print(text, end="", flush=True)
+        with subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.STDOUT
+        ) as process:
+            while process.poll() is None:
+                stdout = process.stdout.read1()
+                try:
+                    text = stdout.decode("utf-8")
+                except UnicodeDecodeError:
+                    text = ""
+                print(text, end="", flush=True)
 
-        except subprocess.CalledProcessError as e:
-            print(e.stdout)
-            raise e
+            if process.returncode != 0:
+                raise TorchrunException(cmd)
 
     def _ensure_torch_installed(self):
         try:
@@ -118,7 +133,7 @@ class TorchrunDecoratorParallel(ParallelDecorator):
         # num_nodes = current.parallel.num_nodes
         # node_index = current.parallel.node_index
 
-        torch_executor = TorchRunExecutor(
+        torch_executor = TorchrunExecutor(
             pathspec=current.pathspec,
             main_addr=main_addr,
             main_port=main_port,
@@ -144,6 +159,7 @@ class TorchrunDecoratorParallel(ParallelDecorator):
                     elif "gpu" in compute_deco_attrs:
                         self.nproc_per_node = int(compute_deco_attrs["gpu"])
                     else:
+                        print(f"\n\n\n\n\n@torchrun using CPU\n\n{compute_deco_attrs}\n\n\n\n\n")
                         self.nproc_per_node = int(compute_deco_attrs["cpu"])
                 except KeyError:
                     self.nproc_per_node = int(compute_deco_attrs["cpu"])
@@ -247,3 +263,11 @@ class AllNodesStartupTimeoutException(MetaflowException):
     def __init__(self):
         msg = "Exiting job due to time out waiting for all workers to join cluster. You can set the timeout in @torchrun(all_nodes_started_timeout=X)"
         super(AllNodesStartupTimeoutException, self).__init__(msg)
+
+
+class TorchrunException(MetaflowException):
+    headline = ""
+
+    def __init__(self, cmd):
+        msg = "The torchrun command \n\n{}\n\nfailed to complete.".format(" ".join(cmd))
+        super(TorchrunException, self).__init__(msg)
