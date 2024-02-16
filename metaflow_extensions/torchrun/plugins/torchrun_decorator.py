@@ -149,7 +149,7 @@ class TorchrunDecoratorParallel(ParallelDecorator):
         for deco in decos:
             if deco.name in ["resources", "kubernetes", "batch"]:
                 compute_deco_attrs = compute_resource_attributes(
-                    decos, deco, {"cpu": "1", "gpu": "0", "inferentia": "0"}
+                    decos, deco, step, {"cpu": "1", "gpu": "0", "inferentia": "0"}
                 )
                 try:
                     if "inferentia" in compute_deco_attrs:
@@ -159,7 +159,6 @@ class TorchrunDecoratorParallel(ParallelDecorator):
                     elif "gpu" in compute_deco_attrs:
                         self.nproc_per_node = int(compute_deco_attrs["gpu"])
                     else:
-                        print(f"\n\n\n\n\n@torchrun using CPU\n\n{compute_deco_attrs}\n\n\n\n\n")
                         self.nproc_per_node = int(compute_deco_attrs["cpu"])
                 except KeyError:
                     self.nproc_per_node = int(compute_deco_attrs["cpu"])
