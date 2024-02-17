@@ -88,10 +88,7 @@ class TorchrunExecutor:
         elif entrypoint_args_raw is not None:
             cmd.extend(entrypoint_args_raw)
 
-        # logging.info("[IP - %s] %s" % (socket.gethostbyname(socket.gethostname()), " ".join(cmd)))
-
         print(" ".join(cmd))
-
         with subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE, 
@@ -152,18 +149,18 @@ class TorchrunDecoratorParallel(ParallelDecorator):
                     decos, deco, step, {"cpu": "1", "gpu": "0", "inferentia": "0"}
                 )
                 try:
-                    if "inferentia" in compute_deco_attrs:
-                        self.nproc_per_node = int(
+                    if "inferentia" in compute_deco_attrs and int(float(compute_deco_attrs['inferentia'])) != 0:
+                        self.nproc_per_node = int(float(
                             compute_deco_attrs["inferentia"]
-                        ) * 2 # each trainium/inferentia device has 2 cores
-                    elif "gpu" in compute_deco_attrs:
-                        self.nproc_per_node = int(compute_deco_attrs["gpu"])
+                        )) * 2 # each trainium/inferentia device has 2 cores
+                    elif "gpu" in compute_deco_attrs and int(float(compute_deco_attrs["inferentia"])) == 0:
+                        self.nproc_per_node = int(float(compute_deco_attrs["gpu"]))
                     else:
-                        self.nproc_per_node = int(compute_deco_attrs["cpu"])
+                        self.nproc_per_node = int(float(compute_deco_attrs["cpu"]))
                 except KeyError:
-                    self.nproc_per_node = int(compute_deco_attrs["cpu"])
+                    self.nproc_per_node = int(float(compute_deco_attrs["cpu"]))
                 if not self.nproc_per_node > 0:
-                    self.nproc_per_node = int(compute_deco_attrs["cpu"])
+                    self.nproc_per_node = int(float(compute_deco_attrs["cpu"]))
                 break
 
     def task_decorate(
@@ -179,7 +176,12 @@ class TorchrunDecoratorParallel(ParallelDecorator):
         ):
             from functools import partial
 
-            env_to_use = getattr(self.environment, "base_env", self.environment)
+            try:
+                env_to_use = getattr(self.environment, "base_env", self.environment)
+            except:
+                from collections import namedtuple
+                Env = namedtuple("Env", ["executable"])   
+                env_to_use = Env(executable=lambda x: sys.executable)
 
             return partial(
                 _local_multinode_control_task_step_func,
@@ -192,6 +194,20 @@ class TorchrunDecoratorParallel(ParallelDecorator):
             return _step_func_with_setup
 
     def setup_distributed_env(self, run, ubf_context):
+
+        if os.environ.get("METAFLOW_RUNTIME_ENVIRONMENT", "local") == "local":
+            if int(os.environ['MF_PARALLEL_NUM_NODES']) > 1: 
+                raise MetaflowException('Running distributed training without @batch or @kubernetes is not yet supported.')
+            else:
+                self._setup_current(
+                    '127.0.0.1',
+                    self.attributes["master_port"],
+                    ubf_context,
+                    1,
+                    0,
+                )
+                return
+
         def _num_nodes_started(path=NODE_STARTED_VAR):
             "Process run on control job to check if all nodes have sent alert they are started."
             objs = s3.get_recursive([path])
