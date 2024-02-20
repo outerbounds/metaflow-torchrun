@@ -152,19 +152,18 @@ class TorchrunDecoratorParallel(ParallelDecorator):
                     decos, deco, {"cpu": "1", "gpu": "0", "inferentia": "0"}
                 )
                 try:
-                    if "inferentia" in compute_deco_attrs:
-                        self.nproc_per_node = int(
+                    if "inferentia" in compute_deco_attrs and int(float(compute_deco_attrs['inferentia'])) != 0:
+                        self.nproc_per_node = int(float(
                             compute_deco_attrs["inferentia"]
-                        ) * 2 # each trainium/inferentia device has 2 cores
-                    elif "gpu" in compute_deco_attrs:
-                        self.nproc_per_node = int(compute_deco_attrs["gpu"])
+                        )) * 2 # each trainium/inferentia device has 2 cores
+                    elif "gpu" in compute_deco_attrs and int(float(compute_deco_attrs["inferentia"])) == 0:
+                        self.nproc_per_node = int(float(compute_deco_attrs["gpu"]))
                     else:
-                        print(f"\n\n\n\n\n@torchrun using CPU\n\n{compute_deco_attrs}\n\n\n\n\n")
-                        self.nproc_per_node = int(compute_deco_attrs["cpu"])
+                        self.nproc_per_node = int(float(compute_deco_attrs["cpu"]))
                 except KeyError:
-                    self.nproc_per_node = int(compute_deco_attrs["cpu"])
+                    self.nproc_per_node = int(float(compute_deco_attrs["cpu"]))
                 if not self.nproc_per_node > 0:
-                    self.nproc_per_node = int(compute_deco_attrs["cpu"])
+                    self.nproc_per_node = int(float(compute_deco_attrs["cpu"]))
                 break
 
     def task_decorate(
