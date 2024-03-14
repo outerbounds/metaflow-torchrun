@@ -1,22 +1,14 @@
-from metaflow import (
-    FlowSpec,
-    step,
-    torchrun,
-    current,
-    kubernetes
-)
+from metaflow import FlowSpec, step, torchrun, current, kubernetes
 
 N_NODES = 2
-N_GPU = 1
 
 
-class TorchrunTensorPass(FlowSpec):
-
+class HelloTorchrun(FlowSpec):
     @step
     def start(self):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
-    @kubernetes(image="docker.io/eddieob/hello-torchrun:12", gpu=N_GPU)
+    @kubernetes(image="docker.io/pytorch/pytorch:latest", cpu=2)
     @torchrun
     @step
     def torch_multinode(self):
@@ -33,4 +25,4 @@ class TorchrunTensorPass(FlowSpec):
 
 
 if __name__ == "__main__":
-    TorchrunTensorPass()
+    HelloTorchrun()

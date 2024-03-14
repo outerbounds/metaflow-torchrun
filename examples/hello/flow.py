@@ -1,4 +1,4 @@
-from metaflow import FlowSpec, step, torchrun, current, batch, kubernetes
+from metaflow import FlowSpec, step, torchrun, current, kubernetes
 
 N_NODES = 2
 
@@ -8,7 +8,7 @@ class HelloTorchrun(FlowSpec):
     def start(self):
         self.next(self.torch_multinode, num_parallel=N_NODES)
 
-    @batch(image="pytorch/pytorch:latest", cpu=2)
+    @kubernetes(image="docker.io/pytorch/pytorch:latest", cpu=2)
     @torchrun
     @step
     def torch_multinode(self):
