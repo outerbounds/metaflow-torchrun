@@ -60,7 +60,14 @@ def send_tensor(backend):
         print("worker_{} has received {} from rank {}\n".format(WORLD_RANK, tensor, 0))
 
 
-def init_processes(backend):
+def run(backend):
+
+    print(
+        "Hello from process {} (out of {}) on {} with rank {} and local rank {}".format(
+            WORLD_RANK, WORLD_SIZE, socket.gethostname(), WORLD_RANK, LOCAL_RANK
+        )
+    )
+
     # A magic torch function to ensure processes can coordinate with master.
     dist.init_process_group(backend, rank=WORLD_RANK, world_size=WORLD_SIZE)
 
@@ -70,20 +77,7 @@ def init_processes(backend):
 
 
 if __name__ == "__main__":
-    if torch.cuda.is_available():
-        default_backend = "nccl"
-    else:
-        default_backend = "gloo"
-
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--backend", type=str, default=default_backend, choices=["nccl", "gloo"]
-    )
+    parser.add_argument("--backend", type=str, default='nccl')
     args = parser.parse_args()
-    print("\tMy ip: %s" % socket.gethostbyname(socket.gethostname()))
-    print("\tMy fqdn: %s" % socket.getfqdn())
-    print("\tMy backend: %s" % args.backend)
-    print("\tMy rank: %s" % WORLD_RANK)
-    print("\tWorld size: %s" % WORLD_SIZE)
-
-    init_processes(backend=args.backend)
+    run(backend=args.backend)
