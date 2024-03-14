@@ -39,5 +39,5 @@ class TorchrunException(MetaflowException):
     headline = ""
 
     def __init__(self, cmd):
-        msg = "The torchrun command \n\n{}\n\nfailed to complete.".format(" ".join(cmd))
+        msg = "The torchrun command \n\n{}\n\nfailed to complete.".format(cmd)
         super(TorchrunException, self).__init__(msg)

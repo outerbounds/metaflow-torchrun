@@ -53,9 +53,9 @@ class TorchrunDecoratorParallel(ParallelDecorator):
 
         for deco in decos: 
             if deco.name in ["resources", "kubernetes", "batch"]:
-                if 'trainium' in deco.attributes and deco.attributes['trainium'] != 0:
+                if 'trainium' in deco.attributes and deco.attributes['trainium'] != None:
                     self.nproc_per_node = deco.attributes['trainium'] * 2 # each trainium/inferentia device has 2 cores
-                elif 'inferentia' in deco.attributes and deco.attributes['inferentia'] != 0:
+                elif 'inferentia' in deco.attributes and deco.attributes['inferentia'] != None:
                     self.nproc_per_node = deco.attributes['inferentia'] * 2
                 elif deco.attributes['gpu']:
                     self.nproc_per_node = deco.attributes['gpu']

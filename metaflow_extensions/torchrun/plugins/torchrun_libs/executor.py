@@ -2,18 +2,27 @@ from typing import List, Dict, Union
 import json
 import os
 import sys
+import time
+import signal
+from threading import Thread
 
 import subprocess
 from .exceptions import TorchrunException, TorchNotInstalledException
 from .datastore import TorchrunDatastore
+from .status_notifier import (
+    TaskStatusNotifier,
+    wait_for_task_completion,
+    TaskFailedException,
+)
 
 from metaflow.exception import MetaflowException
 
 
 def _dict_to_args(d: Dict[str, str]) -> List[str]:
     data = []
+
     for k, v in d.items():
-        if v == "":
+        if (v == "" or v is None):
             data.append(f"--{k}")
         else:
             data.extend([f"--{k}", json.dumps(v).replace('"', "")])
@@ -83,6 +92,10 @@ class TorchrunExecutor:
             cmd.extend(_dict_to_args(entrypoint_args))
         elif entrypoint_args is not None and isinstance(entrypoint_args, list):
             cmd.extend(entrypoint_args)
+
+        print(
+            f"Running torchrun command: \n\n\t{' '.join(cmd)}",
+        )
 
         # Launch the Torchrun run.
         with subprocess.Popen(
@@ -155,13 +168,42 @@ class TorchrunExecutor:
             push_results_dir_to_cloud, datastore, local_output_dir, cloud_output_dir
         )
 
-        # TODO: Use heartbeat to monitor the status of the torchrun processes between nodes.
-        self._exec_cmd(
+        def _monitor_node_health(status_notifier, frequency=10):
+            '''
+            A naive monitor that checks the status of the torchrun processes of other nodes.
+            If any other node has failed, this node should fail as soon as possible to free up resources.
+
+            For complex fault tolerance patterns, there needs to be a more sophisticated health monitor that knows about Metaflow @retry.
+            '''
+            while status_notifier.read(node_index).status == "running":
+                other_failed_nodes = []
+                for i in range(current.parallel.num_nodes):
+                    if i != node_index and status_notifier.read(i).status == "failed": 
+                        other_failed_nodes.append(i) 
+                if len(other_failed_nodes) > 0: 
+                    status_notifier.failed(node_index)
+                    raise MetaflowException(
+                        f"current.torchrun.run on node {node_index} is being forcibly failed because other nodes have failed." 
+                    )
+                time.sleep(frequency)
+                        
+        _status_notifier = TaskStatusNotifier(datastore)
+        _status_notifier.running(node_index)
+        _node_health_monitor = Thread(target=_monitor_node_health, args=(_status_notifier,))
+        _node_health_monitor.start()
+        success_status, stderr = self._exec_cmd(
             torchrun_args=torchrun_args,
             entrypoint=entrypoint,
             entrypoint_args=entrypoint_args,
             nproc_per_node=nproc_per_node,
         )
+        if success_status:
+            _status_notifier.finished(node_index)
+        else:
+            _status_notifier.failed(node_index)
+            msg = f"The `torchrun` command running on node {node_index} has crashed. \n\n[stderr]: {str(stderr)}"
+            raise TorchrunException(msg)
+        _node_health_monitor.join()
         
         # Push results to S3
         if push_results_dir_to_cloud:
