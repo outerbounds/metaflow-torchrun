@@ -93,10 +93,6 @@ class TorchrunExecutor:
         elif entrypoint_args is not None and isinstance(entrypoint_args, list):
             cmd.extend(entrypoint_args)
 
-        print(
-            f"Running torchrun command: \n\n\t{' '.join(cmd)}",
-        )
-
         # Launch the Torchrun run.
         with subprocess.Popen(
             cmd,
