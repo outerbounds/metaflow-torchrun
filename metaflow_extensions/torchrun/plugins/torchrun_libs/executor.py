@@ -53,8 +53,8 @@ class TorchrunExecutor:
             "master_addr": main_addr,
             "master_port": main_port,
             "node_rank": node_index,
+            "nproc_per_node": nproc_per_node,
         }
-        self.nproc_per_node = nproc_per_node
         self._flow_datastore = flow_datastore
         # TODO: heartbeat
 
@@ -63,7 +63,7 @@ class TorchrunExecutor:
         torchrun_args: Union[List[str], Dict[str, str]] = [],
         entrypoint: str = None,
         entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node=None
+        nproc_per_node = None
     ):
     
         self._ensure_torch_installed()
@@ -72,14 +72,18 @@ class TorchrunExecutor:
         cmd = ["torchrun"]
 
         # Construct the torchrun distributed arguments.
+
+        # Group 1: args user supplied in torch.current.run
         if type(torchrun_args) == dict:
             self.torchrun_args.update(torchrun_args)
             torchrun_args = _dict_to_args(self.torchrun_args)
         cmd.extend(torchrun_args)
 
+        # Group 2: defaults user did not specify
         for key, value in self.torchrun_args.items():
             if f'--{key}' not in cmd:
                 cmd.extend([f'--{key}', str(value)])
+        cmd.extend(["--rdzv_endpoint", "%s:%s" % (self.torchrun_args["master_addr"], self.torchrun_args["master_port"])])
 
         # Construct rest of command starting with the entrypoint.
         if entrypoint is not None:
@@ -93,7 +97,7 @@ class TorchrunExecutor:
         elif entrypoint_args is not None and isinstance(entrypoint_args, list):
             cmd.extend(entrypoint_args)
 
-        # Launch the Torchrun run.
+        # Launch the Torchrun process and stream logs.
         with subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
@@ -147,7 +151,7 @@ class TorchrunExecutor:
         torchrun_args: Union[List[str], Dict[str, str]] = [],
         entrypoint: str = None,
         entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node=None,
+        nproc_per_node = None,
         push_results_dir_to_cloud: bool = False,
         local_output_dir: str = None,
         cloud_output_dir: str = None,
