@@ -25,7 +25,7 @@ def setup_torch_distributed_env(
     datastore.put(key_push_path, json.dumps({"started": True}))
     _all_keys = [KeyPaths.Node(i) for i in range(current.parallel.num_nodes)]
     _lock_args = {
-        'description': 'Waiting for all nodes to start',
+        'description': 'Task timed out waiting for the other nodes.',
         'max_wait_time': all_nodes_started_timeout,
         'frequency': polling_frequency,
     }
