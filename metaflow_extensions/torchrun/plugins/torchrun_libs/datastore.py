@@ -31,8 +31,8 @@ class TorchrunDatastore(object):
     @property
     def get_storage_root(self):
         """
-        Return the path to the root of the deepspeed datastore.
-        This method is where the unique deepspeed datastore root for each cloud provider is specified.
+        Return the path to the root of the torchrun datastore.
+        This method is where the unique torchrun datastore root for each cloud provider is specified.
 
         Note: S3Storage class uses the S3 client (other clouds do not have this),
             which prepends the storage root inside the self._backend calls this class uses.
@@ -187,7 +187,7 @@ def task_sync_barrier(
 
     Args:
         barrier_name (str): The name of the barrier. Used for debugging purposes.
-        datastore (DeepspeedDatastore)
+        datastore (TorchrunDatastore)
         keys (List[str]): The keys to wait for in the datastore.
         max_wait_time (float): The maximum time to wait for the keys to be written to the datastore.
         frequency (float): The frequency to check the datastore for the keys.
