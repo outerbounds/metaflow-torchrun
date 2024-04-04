@@ -101,7 +101,7 @@ class TorchrunExecutor:
         with subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
         ) as process:
             while process.poll() is None:
                 stdout = process.stdout.read1()
@@ -112,7 +112,6 @@ class TorchrunExecutor:
                 print(
                     text, end="", flush=True
                 )
-
             if process.returncode != 0:
                 return False, process.stderr.read().decode("utf-8")
             return True, None
@@ -186,7 +185,7 @@ class TorchrunExecutor:
                         f"current.torchrun.run on node {node_index} is being forcibly failed because other nodes have failed." 
                     )
                 time.sleep(frequency)
-                        
+  
         _status_notifier = TaskStatusNotifier(datastore)
         _status_notifier.running(node_index)
         _node_health_monitor = Thread(target=_monitor_node_health, args=(_status_notifier,))
