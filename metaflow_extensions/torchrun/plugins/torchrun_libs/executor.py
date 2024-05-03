@@ -113,7 +113,7 @@ class TorchrunExecutor:
                     text, end="", flush=True
                 )
             if process.returncode != 0:
-                return False, process.stderr.read().decode("utf-8")
+                return False, "Process exited with errors (see above for details)"
             return True, None
 
     def _ensure_torch_installed(self):
