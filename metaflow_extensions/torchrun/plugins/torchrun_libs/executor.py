@@ -90,7 +90,7 @@ class TorchrunExecutor:
             cmd.append(entrypoint)
         else:
             raise MetaflowException(
-                "current.deepspeed.run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
+                "current.torchrun.run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
             cmd.extend(_dict_to_args(entrypoint_args))
