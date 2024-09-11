@@ -69,7 +69,7 @@ class TorchrunExecutor:
         self._ensure_torch_installed()
  
         # Container to build up the command to be run in a subprocess.
-        cmd = ["torchrun"]
+        cmd = [sys.executable, "-m", "torch.distributed.run"]
 
         # Construct the torchrun distributed arguments.
 
