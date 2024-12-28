@@ -8,7 +8,6 @@ The following seven files showcase how to train minGPT inspired from [Karpathy](
 
 3. `char_dataset.py` is adapted from [here](https://github.com/pytorch/examples/blob/main/distributed/minGPT-ddp/mingpt/char_dataset.py)
 
-
 4. `model.py` is adapted from [here](https://github.com/pytorch/examples/blob/main/distributed/minGPT-ddp/mingpt/model.py)
 
 5. `trainer.py` is adapted from [here](https://github.com/pytorch/examples/blob/main/distributed/minGPT-ddp/mingpt/trainer.py)
