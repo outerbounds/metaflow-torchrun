@@ -1,39 +1,37 @@
-from metaflow import (
-    FlowSpec,
-    step,
-    torchrun,
-    current,
-    batch,
-    kubernetes,
-    environment,
-)
-from decorators import gpu_profile
-
-N_NODES = 2
-N_GPU = 8
-N_CPU = 48
-MEMORY = 32000
-SHARED_MEMORY = 4096
+from gpu_profile import gpu_profile
+from metaflow import FlowSpec, step, torchrun, current, kubernetes, environment, pypi
 
 
 class MinGPT(FlowSpec):
+
     @step
     def start(self):
-        self.next(self.torch_multinode, num_parallel=N_NODES)
+        self.next(self.torch_multinode, num_parallel=2)
 
     @environment(vars={"NCCL_SOCKET_IFNAME": "eth0"})
     @gpu_profile(interval=1)
-    @batch(
-        image="eddieob/min-gpt:3",
-        cpu=N_CPU,
-        gpu=N_GPU,
-        memory=MEMORY,
-        shared_memory=SHARED_MEMORY,
+    @kubernetes(
+        image="registry.hub.docker.com/pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime",
+        cpu=12,
+        gpu=1,
+        memory=28000,
+        shared_memory=8000,
+    )
+    @pypi(
+        python="3.10",
+        packages={
+            "fsspec": "2024.12.0",
+            "hydra-core": "1.3.2",
+            "omegaconf": "2.3.0",
+            "aiohttp": "3.11.11",
+            "requests": "2.32.3",
+            "matplotlib": "3.10.0"
+        }
     )
     @torchrun
     @step
     def torch_multinode(self):
-        current.torch.run(entrypoint="main.py", nproc_per_node=N_GPU)
+        current.torch.run(entrypoint="main.py", nproc_per_node=1)
         self.next(self.join)
 
     @step

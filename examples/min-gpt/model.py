@@ -109,12 +109,8 @@ class EmbeddingStem(nn.Module):
             t <= self.block_size
         ), f"Cannot forward sequence of length {t}, block size is only {self.block_size}"
 
-        token_embeddings = self.tok_emb(
-            idx
-        )  # each index maps to a (learnable) embedding vector
-        position_embeddings = self.pos_emb[
-            :, :t, :
-        ]  # each position maps to a (learnable) position vector
+        token_embeddings = self.tok_emb(idx)  # each index maps to a (learnable) embedding vector
+        position_embeddings = self.pos_emb[:, :t, :]  # each position maps to a (learnable) position vector
         return self.drop(token_embeddings + position_embeddings)
 
 
