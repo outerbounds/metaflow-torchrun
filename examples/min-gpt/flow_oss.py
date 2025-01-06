@@ -1,8 +1,8 @@
 from gpu_profile import gpu_profile
-from metaflow import FlowSpec, IncludeFile, step, torchrun, current, kubernetes, pypi
+from metaflow import FlowSpec, IncludeFile, step, torchrun, current, kubernetes
 
 
-num_gpus: int = 4
+num_gpus: int = 2
 
 
 class MinGPT(FlowSpec):
@@ -19,21 +19,11 @@ class MinGPT(FlowSpec):
 
     @gpu_profile(interval=1)
     @kubernetes(
-        image="registry.hub.docker.com/pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime",
+        image="registry.hub.docker.com/eddieob/min-gpt:3",
         cpu=12,
         gpu=num_gpus,
         memory=28000,
         shared_memory=8000,
-    )
-    @pypi(
-        packages={
-            "fsspec": "2024.12.0",
-            "hydra-core": "1.3.2",
-            "omegaconf": "2.3.0",
-            "aiohttp": "3.11.11",
-            "requests": "2.32.3",
-            "matplotlib": "3.10.0"
-        }
     )
     @torchrun
     @step
