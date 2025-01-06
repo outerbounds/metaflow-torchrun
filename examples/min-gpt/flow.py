@@ -1,11 +1,17 @@
 from gpu_profile import gpu_profile
-from metaflow import FlowSpec, step, torchrun, current, kubernetes, pypi
+from metaflow import FlowSpec, IncludeFile, step, torchrun, current, kubernetes, pypi
 
 
 num_gpus: int = 4
 
 
 class MinGPT(FlowSpec):
+    config_file = IncludeFile(
+        name="config_file",
+        is_text=True,
+        help="gpt2 config file.",
+        default="./gpt2_train_cfg.yaml",
+    )
 
     @step
     def start(self):
@@ -32,6 +38,8 @@ class MinGPT(FlowSpec):
     @torchrun
     @step
     def torch_multinode(self):
+        with open("config.yaml", "w") as fp:
+            fp.write(self.config_file)
         current.torch.run(entrypoint="main.py", nproc_per_node=num_gpus)
         self.next(self.join)
 

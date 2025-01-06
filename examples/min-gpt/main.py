@@ -27,7 +27,7 @@ def get_train_objs(gpt_cfg: GPTConfig, opt_cfg: OptimizerConfig, data_cfg: DataC
     return model, optimizer, train_set, test_set
 
 
-@hydra.main(version_base=None, config_path=".", config_name="gpt2_train_cfg")
+@hydra.main(version_base=None, config_path=".", config_name="config")
 def main(cfg: DictConfig):
     ddp_setup()
 
