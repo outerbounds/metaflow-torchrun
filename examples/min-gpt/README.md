@@ -16,5 +16,5 @@ The following seven files showcase how to train minGPT inspired from [Karpathy](
 
 7. `flow.py` uses the above script via `current.torch.run(entrypoint="main.py")`.
 
-- The flow can be run using `python flow.py --package-suffixes=.yaml --environment=pypi run`
-- If you are on the [Outerbounds](https://outerbounds.com/) platform, you can leverage `fast-bakery` for blazingly fast docker image builds. This can be used by `python flow.py --package-suffixes=.yaml --environment=fast-bakery run`
+- The flow can be run using `python flow.py run` if using the OSS version with the `eddieob/min-gpt:3` docker image.
+- If you are on the [Outerbounds](https://outerbounds.com/) platform, you can leverage `fast-bakery` for blazingly fast docker image builds. This can be used by `python flow.py --environment=fast-bakery run`

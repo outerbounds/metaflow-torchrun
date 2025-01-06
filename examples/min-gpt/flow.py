@@ -25,6 +25,9 @@ class MinGPT(FlowSpec):
         memory=28000,
         shared_memory=8000,
     )
+    # the @pypi decorator can be removed and the just
+    # the image "eddieob/min-gpt:3" can be used instead
+    # in the @kubernetes decorator above
     @pypi(
         packages={
             "fsspec": "2024.12.0",
