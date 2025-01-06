@@ -2,7 +2,7 @@ from gpu_profile import gpu_profile
 from metaflow import FlowSpec, step, torchrun, current, kubernetes, pypi
 
 
-num_gpus: int = 1
+num_gpus: int = 4
 
 
 class MinGPT(FlowSpec):
