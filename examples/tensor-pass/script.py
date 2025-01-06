@@ -34,14 +34,16 @@ def get_device(backend="gloo"):
 
 def send_tensor(backend):
     # Wait until all processes reach this point.
-    torch.distributed.barrier()
+    device = get_device(backend)
+    if device.type == "cuda":
+        # Specify device_ids for barrier when using CUDA
+        torch.distributed.barrier(device_ids=[device.index])
+    else:
+        torch.distributed.barrier()
 
     # Make a tensor.
     # Notice this happens in all processes.
-    tensor = torch.zeros(2, 3)
-
-    device = get_device(backend)
-    tensor = tensor.to(device)
+    tensor = torch.zeros(2, 3).to(device)
 
     # On the main process,
     if WORLD_RANK == 0:
@@ -49,9 +51,10 @@ def send_tensor(backend):
         tensor += torch.rand(2, 3).to(device)
 
         # Send the new tensor to all other processes.
+        ## dist.send() is blocking by default - it will wait for each send to complete
+        ## before moving to the next one
         for rank_recv in range(1, WORLD_SIZE):
             dist.send(tensor=tensor, dst=rank_recv)
-            # Block means next iter won't start until this send completes.
         print("control sent {}".format(tensor))
 
     else:
@@ -69,10 +72,16 @@ def run(backend):
     )
 
     # A magic torch function to ensure processes can coordinate with master.
-    dist.init_process_group(backend, rank=WORLD_RANK, world_size=WORLD_SIZE)
+    dist.init_process_group(
+        backend,
+        rank=WORLD_RANK,
+        world_size=WORLD_SIZE,
+        init_method=f"env://",
+    )
 
     # Call sample end user torch distributed code.
     send_tensor(backend)
+
     dist.destroy_process_group()
 
 
