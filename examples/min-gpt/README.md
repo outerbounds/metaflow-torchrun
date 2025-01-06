@@ -1,4 +1,4 @@
-# Introduction
+# Fine Tuning GPT Models using MinGPT
 
 The following nine files showcase how to train minGPT inspired from [Karpathy](https://github.com/karpathy/minGPT) using the `@torchrun` decorator with `@kubernetes` on Metaflow.
 
