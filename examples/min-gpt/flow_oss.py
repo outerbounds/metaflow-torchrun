@@ -19,7 +19,7 @@ class MinGPT(FlowSpec):
 
     @gpu_profile(interval=1)
     @kubernetes(
-        image="eddieob/min-gpt:3",
+        image="registry.hub.docker.com/eddieob/min-gpt:3",
         cpu=12,
         gpu=num_gpus,
         memory=28000,
