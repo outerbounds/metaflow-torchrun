@@ -1,7 +1,7 @@
-import torch.distributed as dist
-import torch
-import os
 import time
+import torch
+import torch.distributed as dist
+
 
 if __name__ == "__main__":
     # initialize the process group
