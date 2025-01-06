@@ -1,6 +1,6 @@
 # Fine Tuning GPT Models using MinGPT
 
-The following nine files showcase how to train minGPT inspired from [Karpathy](https://github.com/karpathy/minGPT) using the `@torchrun` decorator with `@kubernetes` on Metaflow.
+This repo is an adaptation of Andrej Karpathy's [MinGPT project](https://github.com/karpathy/minGPT). It uses the `@torchrun` decorator with `@kubernetes` on Metaflow to train a MinGPT model with distributed training. 
 
 1. `gpu_profile.py` contains the `@gpu_profile` decorator, and is available [here](https://github.com/outerbounds/metaflow-gpu-profile). It is used in the file `flow.py`
 
