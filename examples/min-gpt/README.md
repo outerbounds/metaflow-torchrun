@@ -1,4 +1,4 @@
-# Fine Tuning GPT Models using MinGPT
+# Distributed Training GPT-2 with minGPT
 
 This repo is an adaptation of Andrej Karpathy's [MinGPT project](https://github.com/karpathy/minGPT). It uses the `@torchrun` decorator with `@kubernetes` on Metaflow to train a MinGPT model with distributed training. 
 
@@ -9,4 +9,3 @@ Many of the files in this example have been directly sourced from the MinGPT pro
 
 ## Running on the Outerbounds Platform
 - `python flow.py --environment=fast-bakery run`
-
