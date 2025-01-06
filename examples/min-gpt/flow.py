@@ -2,6 +2,9 @@ from gpu_profile import gpu_profile
 from metaflow import FlowSpec, step, torchrun, current, kubernetes, pypi
 
 
+num_gpus: int = 1
+
+
 class MinGPT(FlowSpec):
 
     @step
@@ -12,7 +15,7 @@ class MinGPT(FlowSpec):
     @kubernetes(
         image="registry.hub.docker.com/pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime",
         cpu=12,
-        gpu=1,
+        gpu=num_gpus,
         memory=28000,
         shared_memory=8000,
     )
@@ -29,7 +32,7 @@ class MinGPT(FlowSpec):
     @torchrun
     @step
     def torch_multinode(self):
-        current.torch.run(entrypoint="main.py", nproc_per_node=1)
+        current.torch.run(entrypoint="main.py", nproc_per_node=num_gpus)
         self.next(self.join)
 
     @step
