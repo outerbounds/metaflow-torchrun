@@ -29,6 +29,7 @@ def _dict_to_args(d: Dict[str, str]) -> List[str]:
     return data
 
 
+
 class TorchrunExecutor:
 
     """
@@ -63,13 +64,13 @@ class TorchrunExecutor:
         torchrun_args: Union[List[str], Dict[str, str]] = [],
         entrypoint: str = None,
         entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node = None
+        nproc_per_node: int = 1
     ):
     
         self._ensure_torch_installed()
  
         # Container to build up the command to be run in a subprocess.
-        cmd = [sys.executable, "-m", "torch.distributed.run"]
+        cmd = [sys.executable, "-m", "torch.distributed.run", f"--nproc_per_node={nproc_per_node}"]
 
         # Construct the torchrun distributed arguments.
 
@@ -150,7 +151,7 @@ class TorchrunExecutor:
         torchrun_args: Union[List[str], Dict[str, str]] = [],
         entrypoint: str = None,
         entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node = None,
+        nproc_per_node: int = 1,
         push_results_dir_to_cloud: bool = False,
         local_output_dir: str = None,
         cloud_output_dir: str = None,
@@ -205,18 +206,103 @@ class TorchrunExecutor:
         _node_health_monitor.join()
         
         # Push results to S3
-        if push_results_dir_to_cloud:
-            if not os.path.exists(local_output_dir):
+        # TODO: deprecate this completely in favor of @checkpoint and @model best practices 
+        # if push_results_dir_to_cloud:
+        #     if not os.path.exists(local_output_dir):
+        #         print(
+        #             f"Torchrun process completed, and local_output_dir `{local_output_dir}` does not exist, skipping push to datastore.",
+        #             file=sys.stderr,
+        #         )
+        #         return None
+        #     paths = datastore.put_files(
+        #         _get_path(local_output_dir, cloud_output_dir, node_index)
+        #     )
+        #     print(
+        #         f"Pushed {len(paths)} files to {datastore._backend.TYPE} at {cloud_output_dir}",
+        #         file=sys.stderr,
+        #     )
+        #     return datastore.get_datastore_file_location(cloud_output_dir)
+
+
+class TorchrunSingleNodeMultiGPU:
+
+    """
+    A slimmed down version of TorchrunExecutor, to be exposed to Metaflow user code for single node, multi-gpu use cases.
+    """
+
+    def __init__(self):
+        pass
+
+    def _exec_cmd(
+        self,
+        torchrun_args: Union[List[str], Dict[str, str]] = [],
+        entrypoint: str = None,
+        entrypoint_args: Union[List[str], Dict[str, str]] = [],
+        nproc_per_node: int = 1
+    ):
+        self._ensure_torch_installed()
+ 
+        # Container to build up the command to be run in a subprocess.
+        cmd = [sys.executable, "-m", "torch.distributed.run", f"--nproc_per_node={nproc_per_node}"]
+
+        # Construct the torchrun distributed arguments.
+
+        # Group 1: args user supplied in torch.current.run
+        if type(torchrun_args) == dict:
+            torchrun_args = _dict_to_args(torchrun_args)
+        cmd.extend(torchrun_args)
+
+        # Construct rest of command starting with the entrypoint.
+        if entrypoint is not None:
+            cmd.append(entrypoint)
+        else:
+            raise MetaflowException(
+                "TorchrunSingleNodeMultiGPU().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
+            )
+        if entrypoint_args is not None and isinstance(entrypoint_args, dict):
+            cmd.extend(_dict_to_args(entrypoint_args))
+        elif entrypoint_args is not None and isinstance(entrypoint_args, list):
+            cmd.extend(entrypoint_args)
+
+        # Launch the Torchrun process and stream logs.
+        with subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        ) as process:
+            while process.poll() is None:
+                stdout = process.stdout.read1()
+                try:
+                    text = stdout.decode("utf-8")
+                except UnicodeDecodeError:
+                    text = ""
                 print(
-                    f"Torchrun process completed, and local_output_dir `{local_output_dir}` does not exist, skipping push to datastore.",
-                    file=sys.stderr,
+                    text, end="", flush=True
                 )
-                return None
-            paths = datastore.put_files(
-                _get_path(local_output_dir, cloud_output_dir, node_index)
-            )
-            print(
-                f"Pushed {len(paths)} files to {datastore._backend.TYPE} at {cloud_output_dir}",
-                file=sys.stderr,
-            )
-            return datastore.get_datastore_file_location(cloud_output_dir)
+            if process.returncode != 0:
+                return False, "Process exited with errors (see above for details)"
+            return True, None
+
+    def _ensure_torch_installed(self):
+        try:
+            import torch
+        except ImportError:
+            raise TorchNotInstalledException()
+
+    def run(
+        self,
+        torchrun_args: Union[List[str], Dict[str, str]] = [],
+        entrypoint: str = None,
+        entrypoint_args: Union[List[str], Dict[str, str]] = [],
+        nproc_per_node: int = 1
+    ) -> Union[str, None]:
+
+        success_status, stderr = self._exec_cmd(
+            torchrun_args=torchrun_args,
+            entrypoint=entrypoint,
+            entrypoint_args=entrypoint_args,
+            nproc_per_node=nproc_per_node
+        )
+        if not success_status:
+            msg = f"The `torchrun` command has crashed. \n\n[stderr]: {str(stderr)}"
+            raise TorchrunException(msg)
