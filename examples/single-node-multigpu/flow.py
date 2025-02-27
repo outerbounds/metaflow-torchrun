@@ -4,7 +4,7 @@ class SingleNodeMultiGPUTorchrun(FlowSpec):
 
     @step
     def start(self):
-        from metaflow.plugins.torchrun_libs.executor import TorchrunSingleNodeMultiGPU
+        from metaflow import TorchrunSingleNodeMultiGPU
 
         executor = TorchrunSingleNodeMultiGPU()
         executor.run(entrypoint="script.py", nproc_per_node=2)
@@ -13,7 +13,6 @@ class SingleNodeMultiGPUTorchrun(FlowSpec):
     @step
     def end(self):
         pass
-
 
 if __name__ == '__main__':
     SingleNodeMultiGPUTorchrun()

@@ -5,7 +5,7 @@ class BertTrainingSingleNodeMultiGPU(FlowSpec):
     @resources(gpu=8)
     @step
     def start(self):
-        from metaflow.plugins.torchrun_libs.executor import TorchrunSingleNodeMultiGPU
+        from metaflow import TorchrunSingleNodeMultiGPU
 
         executor = TorchrunSingleNodeMultiGPU()
         executor.run(entrypoint="train_script.py", nproc_per_node=8)
