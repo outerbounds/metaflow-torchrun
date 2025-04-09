@@ -70,22 +70,58 @@ class TorchrunExecutor:
         self._ensure_torch_installed()
  
         # Container to build up the command to be run in a subprocess.
-        cmd = [sys.executable, "-m", "torch.distributed.run", f"--nproc_per_node={nproc_per_node}"]
+        cmd = [sys.executable, "-m", "torch.distributed.run"]
+
+        # Handle torchrun_args accounting for nproc_per_node
+        active_args = self.torchrun_args.copy()
+        active_args["nproc_per_node"] = nproc_per_node
 
         # Construct the torchrun distributed arguments.
+        if isinstance(torchrun_args, dict):
+            active_args.update(torchrun_args)
+            cmd_args = _dict_to_args(active_args)
+            cmd.extend(cmd_args)
+        else:
+            # If torchrun_args is a list, we need to check for existing args and supplement with defaults
+            processed_args = list(torchrun_args)  # Create a copy
+            override_args = set()
+            
+            # First, check which args are already in the list and update nproc_per_node if present
+            for i, arg in enumerate(processed_args):
+                if arg.startswith('--'): 
+                    arg_name = arg[2:]
+                    override_args.add(arg_name)
+                    if arg_name == 'nproc_per_node' and i+1 < len(processed_args):
+                        processed_args[i+1] = str(nproc_per_node)
+            
+            # Then add any default args not already in the list
+            for arg_key, arg_val in active_args.items():
+                if arg_key not in override_args:
+                    processed_args.extend([f'--{arg_key}', str(arg_val)])
+            
+            cmd.extend(processed_args)
 
         # Group 1: args user supplied in torch.current.run
-        if type(torchrun_args) == dict:
-            self.torchrun_args.update(torchrun_args)
-            torchrun_args = _dict_to_args(self.torchrun_args)
-        cmd.extend(torchrun_args)
+        # if type(torchrun_args) == dict:
+        #     self.torchrun_args.update(torchrun_args)
+        #     torchrun_args = _dict_to_args(self.torchrun_args)
+        # cmd.extend(torchrun_args)
 
         # Group 2: defaults user did not specify
-        for key, value in self.torchrun_args.items():
-            if f'--{key}' not in cmd:
-                cmd.extend([f'--{key}', str(value)])
-        cmd.extend(["--rdzv_endpoint", "%s:%s" % (self.torchrun_args["master_addr"], self.torchrun_args["master_port"])])
+        # for key, value in self.torchrun_args.items():
+        #     if f'--{key}' not in cmd:
+        #         cmd.extend([f'--{key}', str(value)])
 
+
+        rdzv_present = False
+        for i, arg in enumerate(cmd):
+            if arg == '--rdzv_endpoint':
+                rdzv_present = True
+                break
+        
+        if not rdzv_present:
+            cmd.extend(["--rdzv_endpoint", "%s:%s" % (active_args["master_addr"], active_args["master_port"])])
+        
         # Construct rest of command starting with the entrypoint.
         if entrypoint is not None:
             cmd.append(entrypoint)
@@ -224,7 +260,7 @@ class TorchrunExecutor:
         #     return datastore.get_datastore_file_location(cloud_output_dir)
 
 
-class TorchrunSingleNodeMultiGPU:
+class TorchrunSingleNodeMultiProcess:
 
     """
     A slimmed down version of TorchrunExecutor, to be exposed to Metaflow user code for single node, multi-gpu use cases.
@@ -257,7 +293,7 @@ class TorchrunSingleNodeMultiGPU:
             cmd.append(entrypoint)
         else:
             raise MetaflowException(
-                "TorchrunSingleNodeMultiGPU().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
+                "TorchrunSingleNodeMultiProcess().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
             cmd.extend(_dict_to_args(entrypoint_args))
