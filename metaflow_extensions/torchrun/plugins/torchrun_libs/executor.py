@@ -248,7 +248,7 @@ class TorchrunExecutor:
         #     return datastore.get_datastore_file_location(cloud_output_dir)
 
 
-class TorchrunSingleNodeMultiProcess:
+class TorchrunSingleNodeMultiGPU:
 
     """
     A slimmed down version of TorchrunExecutor, to be exposed to Metaflow user code for single node, multi-gpu use cases.
@@ -281,7 +281,7 @@ class TorchrunSingleNodeMultiProcess:
             cmd.append(entrypoint)
         else:
             raise MetaflowException(
-                "TorchrunSingleNodeMultiProcess().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
+                "TorchrunSingleNodeMultiGPU().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
             cmd.extend(_dict_to_args(entrypoint_args))
