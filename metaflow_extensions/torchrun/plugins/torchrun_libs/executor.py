@@ -101,18 +101,6 @@ class TorchrunExecutor:
             
             cmd.extend(processed_args)
 
-        # Group 1: args user supplied in torch.current.run
-        # if type(torchrun_args) == dict:
-        #     self.torchrun_args.update(torchrun_args)
-        #     torchrun_args = _dict_to_args(self.torchrun_args)
-        # cmd.extend(torchrun_args)
-
-        # Group 2: defaults user did not specify
-        # for key, value in self.torchrun_args.items():
-        #     if f'--{key}' not in cmd:
-        #         cmd.extend([f'--{key}', str(value)])
-
-
         rdzv_present = False
         for i, arg in enumerate(cmd):
             if arg == '--rdzv_endpoint':
