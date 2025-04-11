@@ -33,6 +33,8 @@ class TorchrunDecoratorParallel(ParallelDecorator):
     IS_PARALLEL = True
 
     def _setup_current(self, main_addr, main_port, ubf_context, num_nodes, node_index):
+        self.nproc_per_node = self.attributes['nproc_per_node']
+
         current._update_env(
             {
                 "torch": TorchrunExecutor(
@@ -52,16 +54,18 @@ class TorchrunDecoratorParallel(ParallelDecorator):
 
         self.flow_datastore = flow_datastore
 
-        for deco in decos: 
-            if deco.name in ["resources", "kubernetes", "batch"]:
-                if 'trainium' in deco.attributes and deco.attributes['trainium'] != None:
-                    self.nproc_per_node = deco.attributes['trainium'] * 2 # each trainium/inferentia device has 2 cores
-                elif 'inferentia' in deco.attributes and deco.attributes['inferentia'] != None:
-                    self.nproc_per_node = deco.attributes['inferentia'] * 2
-                elif deco.attributes['gpu']:
-                    self.nproc_per_node = deco.attributes['gpu']
-                else:
-                    self.nproc_per_node = deco.attributes['cpu']
+        # NOTE: Below code path is depcrecated. 
+        # Decision: User should explicitly specify cases when nproc_per_node is not 1.
+        # for deco in decos: 
+        #     if deco.name in ["resources", "kubernetes", "batch"]:
+        #         if 'trainium' in deco.attributes and deco.attributes['trainium'] != None:
+        #             self.nproc_per_node = deco.attributes['trainium'] * 2 # each trainium/inferentia device has 2 cores
+        #         elif 'inferentia' in deco.attributes and deco.attributes['inferentia'] != None:
+        #             self.nproc_per_node = deco.attributes['inferentia'] * 2
+        #         elif deco.attributes['gpu']:
+        #             self.nproc_per_node = deco.attributes['gpu']
+        #         else:
+        #             self.nproc_per_node = deco.attributes['cpu']
 
     def task_pre_step(
         self,

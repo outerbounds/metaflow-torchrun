@@ -29,6 +29,16 @@ def _dict_to_args(d: Dict[str, str]) -> List[str]:
     return data
 
 
+def _list_to_args(l: List[str]) -> List[str]:
+    data = []
+
+    for idx, item in enumerate(l):
+        if idx % 2 == 0:
+            # arg
+            data.append(f"--{item}")
+        else:
+            data.append(json.dumps(item).replace('"', ""))
+    return data
 
 class TorchrunExecutor:
 
@@ -49,6 +59,9 @@ class TorchrunExecutor:
     def __init__(
         self, pathspec, main_addr, main_port, num_nodes, node_index, nproc_per_node=1, flow_datastore=None,
     ) -> None:
+        
+        # These arguments are pass upon attaching to the metaflow.current.torch object.
+        # Values may be overridden by a user passing values to metaflow.current.torch.run's torchrun_args.
         self.torchrun_args = {
             "nnodes": num_nodes,
             "master_addr": main_addr,
@@ -61,55 +74,77 @@ class TorchrunExecutor:
 
     def _exec_cmd(
         self,
-        torchrun_args: Union[List[str], Dict[str, str]] = [],
+        torchrun_args: Union[List[str], Dict[str, str]] = {},
         entrypoint: str = None,
-        entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node: int = 1
+        entrypoint_args: Union[List[str], Dict[str, str]] = {},
+        nproc_per_node: int = None
     ):
+        # nproc_per_node is a special parameter, often featured in torchrun commands across the internet.
+        # It is the only arg that can be specified with its own parameter value, or within torchrun_args.
+        # This block processes accordingly to find a single value. The order of precedence:
+            # 1. user override --> nproc_per_node argument of current.torch.run.
+            # 2. user override --> 'nproc_per_node' key of torchrun_args arg of current.torch.run.
+            # 3.       default --> 1. NOTE: If desired in future, this could be derived from @resources spec, see torchrun_decorator.py.
+        if nproc_per_node is not None and 'nproc_per_node' in torchrun_args:
+            # executor.run(entrypoint="script.py", nproc_per_node=4, torchrun_args={"nproc_per_node": 3}) XXX INVALID XXX
+            error_msg = 'If nproc_per_node argument in current.torch.run is specified, do not set nproc_per_node in torchrun_args.'
+            return False, error_msg
+        elif nproc_per_node is None and 'nproc_per_node' not in torchrun_args:
+            # executor.run(entrypoint="script.py") XXX DEFAULT = 1 XXX
+            if isinstance(torchrun_args, dict):
+                torchrun_args['nproc_per_node'] = str(1)
+            elif isinstance(torchrun_args, list):
+                try:
+                    idx = torchrun_args.index('nproc_per_node')
+                    if len(torchrun_args) < idx + 1:
+                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                        return False, error_msg
+                    torchrun_args[idx+1] = str(1)
+                except ValueError: 
+                    torchrun_args.extend(['nproc_per_node', str(1)])
+        elif nproc_per_node is None and 'nproc_per_node' in torchrun_args:
+            # executor.run(entrypoint="script.py", torchrun_args={"nproc_per_node": 4}) XXX USER OPTION = 4 XXX
+            if isinstance(torchrun_args, dict):
+                pass
+            # executor.run(entrypoint="script.py", torchrun_args=["nproc_per_node", 4]) XXX USER OPTION = 4 XXX
+            elif isinstance(torchrun_args, list):
+                idx = torchrun_args.index('nproc_per_node')
+                if len(torchrun_args) < idx+1:
+                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                    return False, error_msg
+                torchrun_args[idx+1] = str(torchrun_args[idx+1])
+        else:
+            # executor.run(entrypoint="script.py", nproc_per_node=6, torchrun_args={...}) XXX USER OPTION = 6 XXX
+            if isinstance(torchrun_args, dict):
+                torchrun_args['nproc_per_node'] = nproc_per_node
+            elif isinstance(torchrun_args, list):
+                idx = torchrun_args.get('nproc_per_node')
+                if len(torchrun_args) < idx+1:
+                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                    return False, error_msg
+                torchrun_args[idx+1] = str(torchrun_args[idx+1])
     
         self._ensure_torch_installed()
  
         # Container to build up the command to be run in a subprocess.
         cmd = [sys.executable, "-m", "torch.distributed.run"]
 
-        # Handle torchrun_args accounting for nproc_per_node
-        active_args = self.torchrun_args.copy()
-        active_args["nproc_per_node"] = nproc_per_node
-
         # Construct the torchrun distributed arguments.
-        if isinstance(torchrun_args, dict):
-            active_args.update(torchrun_args)
-            cmd_args = _dict_to_args(active_args)
-            cmd.extend(cmd_args)
-        else:
-            # If torchrun_args is a list, we need to check for existing args and supplement with defaults
-            processed_args = list(torchrun_args)  # Create a copy
-            override_args = set()
-            
-            # First, check which args are already in the list and update nproc_per_node if present
-            for i, arg in enumerate(processed_args):
-                if arg.startswith('--'): 
-                    arg_name = arg[2:]
-                    override_args.add(arg_name)
-                    if arg_name == 'nproc_per_node' and i+1 < len(processed_args):
-                        processed_args[i+1] = str(nproc_per_node)
-            
-            # Then add any default args not already in the list
-            for arg_key, arg_val in active_args.items():
-                if arg_key not in override_args:
-                    processed_args.extend([f'--{arg_key}', str(arg_val)])
-            
-            cmd.extend(processed_args)
 
-        rdzv_present = False
-        for i, arg in enumerate(cmd):
-            if arg == '--rdzv_endpoint':
-                rdzv_present = True
-                break
-        
-        if not rdzv_present:
-            cmd.extend(["--rdzv_endpoint", "%s:%s" % (active_args["master_addr"], active_args["master_port"])])
-        
+        # Group 1: args user supplied in torch.current.run
+        if type(torchrun_args) == dict:
+            self.torchrun_args.update(torchrun_args)
+            torchrun_args = _dict_to_args(self.torchrun_args)
+        elif isinstance(torchrun_args, list):
+            torchrun_args = _list_to_args(torchrun_args)
+        cmd.extend(torchrun_args)
+
+        # Group 2: defaults user did not specify
+        for key, value in self.torchrun_args.items():
+            if f'--{key}' not in cmd:
+                cmd.extend([f'--{key}', str(value)])
+        cmd.extend(["--rdzv_endpoint", "%s:%s" % (self.torchrun_args["master_addr"], self.torchrun_args["master_port"])])
+
         # Construct rest of command starting with the entrypoint.
         if entrypoint is not None:
             cmd.append(entrypoint)
@@ -140,6 +175,7 @@ class TorchrunExecutor:
             if process.returncode != 0:
                 return False, "Process exited with errors (see above for details)"
             return True, None
+
 
     def _ensure_torch_installed(self):
         try:
@@ -172,10 +208,10 @@ class TorchrunExecutor:
 
     def run(
         self,
-        torchrun_args: Union[List[str], Dict[str, str]] = [],
+        torchrun_args: Union[List[str], Dict[str, str]] = {},
         entrypoint: str = None,
-        entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node: int = 1,
+        entrypoint_args: Union[List[str], Dict[str, str]] = {},
+        nproc_per_node: int = None,
         push_results_dir_to_cloud: bool = False,
         local_output_dir: str = None,
         cloud_output_dir: str = None,
@@ -187,7 +223,6 @@ class TorchrunExecutor:
             flow_datastore=self._flow_datastore, pathspec=current.pathspec
         )
 
-        # Resolve storage paths
         cloud_output_dir = self._resolve_storage_paths(
             push_results_dir_to_cloud, datastore, local_output_dir, cloud_output_dir
         )
@@ -259,21 +294,75 @@ class TorchrunSingleNodeMultiGPU:
 
     def _exec_cmd(
         self,
-        torchrun_args: Union[List[str], Dict[str, str]] = [],
+        torchrun_args: Union[List[str], Dict[str, str]] = {},
         entrypoint: str = None,
-        entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node: int = 1
+        entrypoint_args: Union[List[str], Dict[str, str]] = {},
+        nproc_per_node: int = None
     ):
+        # nproc_per_node is a special parameter, often featured in torchrun commands across the internet.
+        # It is the only arg that can be specified with its own parameter value, or within torchrun_args.
+        # This block processes accordingly to find a single value. The order of precedence:
+            # 1. user override --> nproc_per_node argument of current.torch.run.
+            # 2. user override --> 'nproc_per_node' key of torchrun_args arg of current.torch.run.
+            # 3.       default --> 1. NOTE: If desired in future, this could be derived from @resources spec, see torchrun_decorator.py.
+        if nproc_per_node is not None and 'nproc_per_node' in torchrun_args:
+            # executor.run(entrypoint="script.py", nproc_per_node=4, torchrun_args={"nproc_per_node": 3}) XXX INVALID XXX
+            error_msg = 'If nproc_per_node argument of TorchrunSingleNodeMultiGPU().run is specified, do not set nproc_per_node in torchrun_args.'
+            print(f'[current.torch.run ERROR] {error_msg}')
+            return False, error_msg
+        elif nproc_per_node is None and 'nproc_per_node' not in torchrun_args:
+            # executor.run(entrypoint="script.py") XXX DEFAULT = 1 XXX
+            if isinstance(torchrun_args, dict):
+                torchrun_args['nproc_per_node'] = str(1)
+            elif isinstance(torchrun_args, list):
+                try:
+                    idx = torchrun_args.index('nproc_per_node')
+                    if len(torchrun_args) < idx + 1:
+                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                        return False, error_msg
+                    torchrun_args[idx+1] = str(1)
+                except ValueError:
+                    torchrun_args.extend(['nproc_per_node', str(1)])
+        elif nproc_per_node is None and 'nproc_per_node' in torchrun_args:
+            # executor.run(entrypoint="script.py", torchrun_args={"nproc_per_node": 4}) XXX USER OPTION = 4 XXX
+            if isinstance(torchrun_args, dict):
+                pass
+            # executor.run(entrypoint="script.py", torchrun_args=["nproc_per_node", 4]) XXX USER OPTION = 4 XXX
+            elif isinstance(torchrun_args, list):
+                idx = torchrun_args.index('nproc_per_node')
+                if len(torchrun_args) < idx+1:
+                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                    return False, error_msg
+                nproc_per_node = str(torchrun_args[idx+1])
+                torchrun_args[idx+1] = nproc_per_node
+        else:
+            # executor.run(entrypoint="script.py", nproc_per_node=6, torchrun_args={...}) XXX USER OPTION = 6 XXX
+            if isinstance(torchrun_args, dict):
+                torchrun_args['nproc_per_node'] = nproc_per_node
+            elif isinstance(torchrun_args, list):
+                try:
+                    idx = torchrun_args.index('nproc_per_node')
+                
+                    if len(torchrun_args) < idx+1:
+                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                        return False, error_msg
+                    torchrun_args[idx+1] = str(torchrun_args[idx+1])
+                except ValueError:
+                    # torchrun_args does not contain nproc_per_node
+                    torchrun_args.extend(['nproc_per_node', str(nproc_per_node)])
+
         self._ensure_torch_installed()
  
         # Container to build up the command to be run in a subprocess.
-        cmd = [sys.executable, "-m", "torch.distributed.run", f"--nproc_per_node={nproc_per_node}"]
+        cmd = [sys.executable, "-m", "torch.distributed.run"]
 
         # Construct the torchrun distributed arguments.
 
         # Group 1: args user supplied in torch.current.run
-        if type(torchrun_args) == dict:
+        if isinstance(torchrun_args, dict):
             torchrun_args = _dict_to_args(torchrun_args)
+        elif isinstance(torchrun_args, list):
+            torchrun_args = _list_to_args(torchrun_args)
         cmd.extend(torchrun_args)
 
         # Construct rest of command starting with the entrypoint.
@@ -318,7 +407,7 @@ class TorchrunSingleNodeMultiGPU:
         torchrun_args: Union[List[str], Dict[str, str]] = [],
         entrypoint: str = None,
         entrypoint_args: Union[List[str], Dict[str, str]] = [],
-        nproc_per_node: int = 1
+        nproc_per_node: int = None
     ) -> Union[str, None]:
 
         success_status, stderr = self._exec_cmd(
