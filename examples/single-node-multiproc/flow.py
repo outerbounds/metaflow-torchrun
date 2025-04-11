@@ -1,7 +1,9 @@
-from metaflow import FlowSpec, step
+from metaflow import FlowSpec, step, pypi, kubernetes
 
 class SingleNodeMultiGPUTorchrun(FlowSpec):
 
+    @kubernetes
+    @pypi(python="3.12", packages={"torch": "", "numpy": ""})
     @step
     def start(self):
         from metaflow import TorchrunSingleNodeMultiGPU
