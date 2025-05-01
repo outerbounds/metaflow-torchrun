@@ -17,6 +17,7 @@ class TorchrunDDP(FlowSpec):
         current.torch.run(
             entrypoint="multinode_trainer.py",
             entrypoint_args={"total-epochs": 2, "batch-size": 32, "save-every": 1},
+            torchrun_args={"max-restarts":"3"},
         )
         self.next(self.join)
 
