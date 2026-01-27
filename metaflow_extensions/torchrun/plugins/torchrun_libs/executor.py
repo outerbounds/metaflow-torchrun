@@ -158,23 +158,26 @@ class TorchrunExecutor:
             cmd.extend(entrypoint_args)
 
         # Launch the Torchrun process and stream logs.
-        with subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        ) as process:
-            while process.poll() is None:
-                stdout = process.stdout.read1()
-                try:
-                    text = stdout.decode("utf-8")
-                except UnicodeDecodeError:
-                    text = ""
-                print(
-                    text, end="", flush=True
-                )
-            if process.returncode != 0:
-                return False, "Process exited with errors (see above for details)"
-            return True, None
+        try:
+            with subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            ) as process:
+                while process.poll() is None:
+                    stdout = process.stdout.read1()
+                    try:
+                        text = stdout.decode("utf-8")
+                    except UnicodeDecodeError:
+                        text = ""
+                    print(
+                        text, end="", flush=True
+                    )
+                if process.returncode != 0:
+                    return False, "Process exited with errors (see above for details)"
+                return True, None
+        except (FileNotFoundError, PermissionError, OSError, ValueError, TypeError) as e:
+            return False, f"Failed to start subprocess: {str(e)}"
 
 
     def _ensure_torch_installed(self):
@@ -378,23 +381,26 @@ class TorchrunSingleNodeMultiGPU:
             cmd.extend(entrypoint_args)
 
         # Launch the Torchrun process and stream logs.
-        with subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        ) as process:
-            while process.poll() is None:
-                stdout = process.stdout.read1()
-                try:
-                    text = stdout.decode("utf-8")
-                except UnicodeDecodeError:
-                    text = ""
-                print(
-                    text, end="", flush=True
-                )
-            if process.returncode != 0:
-                return False, "Process exited with errors (see above for details)"
-            return True, None
+        try:
+            with subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+            ) as process:
+                while process.poll() is None:
+                    stdout = process.stdout.read1()
+                    try:
+                        text = stdout.decode("utf-8")
+                    except UnicodeDecodeError:
+                        text = ""
+                    print(
+                        text, end="", flush=True
+                    )
+                if process.returncode != 0:
+                    return False, "Process exited with errors (see above for details)"
+                return True, None
+        except (FileNotFoundError, PermissionError, OSError, ValueError, TypeError) as e:
+            return False, f"Failed to start subprocess: {str(e)}"
 
     def _ensure_torch_installed(self):
         try:
