@@ -88,7 +88,7 @@ class TorchrunExecutor:
         if nproc_per_node is not None and 'nproc_per_node' in torchrun_args:
             # executor.run(entrypoint="script.py", nproc_per_node=4, torchrun_args={"nproc_per_node": 3}) XXX INVALID XXX
             error_msg = 'If nproc_per_node argument in current.torch.run is specified, do not set nproc_per_node in torchrun_args.'
-            raise MetaflowException(error_msg)
+            raise TorchrunException(error_msg)
         elif nproc_per_node is None and 'nproc_per_node' not in torchrun_args:
             # executor.run(entrypoint="script.py") XXX DEFAULT = 1 XXX
             if isinstance(torchrun_args, dict):
@@ -98,7 +98,7 @@ class TorchrunExecutor:
                     idx = torchrun_args.index('nproc_per_node')
                     if len(torchrun_args) < idx + 1:
                         error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        raise MetaflowException(error_msg)
+                        raise TorchrunException(error_msg)
                     torchrun_args[idx+1] = str(1)
                 except ValueError: 
                     torchrun_args.extend(['nproc_per_node', str(1)])
@@ -111,7 +111,7 @@ class TorchrunExecutor:
                 idx = torchrun_args.index('nproc_per_node')
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    raise MetaflowException(error_msg)
+                    raise TorchrunException(error_msg)
                 torchrun_args[idx+1] = str(torchrun_args[idx+1])
         else:
             # executor.run(entrypoint="script.py", nproc_per_node=6, torchrun_args={...}) XXX USER OPTION = 6 XXX
@@ -122,7 +122,7 @@ class TorchrunExecutor:
                     idx = torchrun_args.index('nproc_per_node')
                     if len(torchrun_args) < idx+1:
                         error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        raise MetaflowException(error_msg)
+                        raise TorchrunException(error_msg)
                     torchrun_args[idx+1] = str(nproc_per_node)
                 except ValueError:
                     # nproc_per_node not in list, add it
@@ -153,7 +153,7 @@ class TorchrunExecutor:
         if entrypoint is not None:
             cmd.append(entrypoint)
         else:
-            raise MetaflowException(
+            raise TorchrunException(
                 "current.torchrun.run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
@@ -322,7 +322,7 @@ class TorchrunSingleNodeMultiGPU:
         if nproc_per_node is not None and 'nproc_per_node' in torchrun_args:
             # executor.run(entrypoint="script.py", nproc_per_node=4, torchrun_args={"nproc_per_node": 3}) XXX INVALID XXX
             error_msg = 'If nproc_per_node argument of TorchrunSingleNodeMultiGPU().run is specified, do not set nproc_per_node in torchrun_args.'
-            raise MetaflowException(error_msg)
+            raise TorchrunException(error_msg)
         elif nproc_per_node is None and 'nproc_per_node' not in torchrun_args:
             # executor.run(entrypoint="script.py") XXX DEFAULT = 1 XXX
             if isinstance(torchrun_args, dict):
@@ -332,7 +332,7 @@ class TorchrunSingleNodeMultiGPU:
                     idx = torchrun_args.index('nproc_per_node')
                     if len(torchrun_args) < idx + 1:
                         error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        raise MetaflowException(error_msg)
+                        raise TorchrunException(error_msg)
                     torchrun_args[idx+1] = str(1)
                 except ValueError:
                     torchrun_args.extend(['nproc_per_node', str(1)])
@@ -345,7 +345,7 @@ class TorchrunSingleNodeMultiGPU:
                 idx = torchrun_args.index('nproc_per_node')
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    raise MetaflowException(error_msg)
+                    raise TorchrunException(error_msg)
                 nproc_per_node = str(torchrun_args[idx+1])
                 torchrun_args[idx+1] = nproc_per_node
         else:
@@ -358,7 +358,7 @@ class TorchrunSingleNodeMultiGPU:
                 
                     if len(torchrun_args) < idx+1:
                         error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        raise MetaflowException(error_msg)
+                        raise TorchrunException(error_msg)
                     torchrun_args[idx+1] = str(torchrun_args[idx+1])
                 except ValueError:
                     # torchrun_args does not contain nproc_per_node
@@ -382,7 +382,7 @@ class TorchrunSingleNodeMultiGPU:
         if entrypoint is not None:
             cmd.append(entrypoint)
         else:
-            raise MetaflowException(
+            raise TorchrunException(
                 "TorchrunSingleNodeMultiGPU().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
