@@ -118,11 +118,15 @@ class TorchrunExecutor:
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = nproc_per_node
             elif isinstance(torchrun_args, list):
-                idx = torchrun_args.get('nproc_per_node')
-                if len(torchrun_args) < idx+1:
-                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    raise MetaflowException(error_msg)
-                torchrun_args[idx+1] = str(torchrun_args[idx+1])
+                try:
+                    idx = torchrun_args.index('nproc_per_node')
+                    if len(torchrun_args) < idx+1:
+                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                        raise MetaflowException(error_msg)
+                    torchrun_args[idx+1] = str(nproc_per_node)
+                except ValueError:
+                    # nproc_per_node not in list, add it
+                    torchrun_args.extend(['nproc_per_node', str(nproc_per_node)])
     
         self._ensure_torch_installed()
  
