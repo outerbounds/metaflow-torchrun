@@ -162,19 +162,23 @@ class TorchrunExecutor:
             with subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE,
             ) as process:
                 while process.poll() is None:
                     stdout = process.stdout.read1()
+                    stderr = process.stderr.read1()
                     try:
-                        text = stdout.decode("utf-8")
+                        stdout_text = stdout.decode("utf-8")
                     except UnicodeDecodeError:
-                        text = ""
-                    print(
-                        text, end="", flush=True
-                    )
+                        stdout_text = ""
+                    try:
+                        stderr_text = stderr.decode("utf-8")
+                    except UnicodeDecodeError:
+                        stderr_text = ""
+                    print(stdout_text, end="", flush=True)
+                    print(stderr_text, end="", flush=True, file=sys.stderr)
                 if process.returncode != 0:
-                    return False, "Process exited with errors (see above for details)"
+                    raise TorchrunException(f"Process exited with return code {process.returncode}")
                 return True, None
         except (FileNotFoundError, PermissionError, OSError) as e:
             return False, f"Failed to start subprocess: {str(e)}"
@@ -253,18 +257,24 @@ class TorchrunExecutor:
         _status_notifier.running(node_index)
         _node_health_monitor = Thread(target=_monitor_node_health, args=(_status_notifier,))
         _node_health_monitor.start()
-        success_status, stderr = self._exec_cmd(
-            torchrun_args=torchrun_args,
-            entrypoint=entrypoint,
-            entrypoint_args=entrypoint_args,
-            nproc_per_node=nproc_per_node,
-        )
-        if success_status:
-            _status_notifier.finished(node_index)
-        else:
+        try:
+            success_status, stderr = self._exec_cmd(
+                torchrun_args=torchrun_args,
+                entrypoint=entrypoint,
+                entrypoint_args=entrypoint_args,
+                nproc_per_node=nproc_per_node,
+            )
+            if success_status:
+                _status_notifier.finished(node_index)
+            else:
+                # This handles cases where subprocess failed to start (FileNotFoundError, etc.)
+                _status_notifier.failed(node_index)
+                msg = f"The `torchrun` command running on node {node_index} has crashed. \n\n[stderr]: {str(stderr)}"
+                raise TorchrunException(msg)
+        except TorchrunException:
+            # Process failed during execution (non-zero return code)
             _status_notifier.failed(node_index)
-            msg = f"The `torchrun` command running on node {node_index} has crashed. \n\n[stderr]: {str(stderr)}"
-            raise TorchrunException(msg)
+            raise
         _node_health_monitor.join()
         
         # Push results to S3
@@ -385,19 +395,23 @@ class TorchrunSingleNodeMultiGPU:
             with subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.PIPE,
             ) as process:
                 while process.poll() is None:
                     stdout = process.stdout.read1()
+                    stderr = process.stderr.read1()
                     try:
-                        text = stdout.decode("utf-8")
+                        stdout_text = stdout.decode("utf-8")
                     except UnicodeDecodeError:
-                        text = ""
-                    print(
-                        text, end="", flush=True
-                    )
+                        stdout_text = ""
+                    try:
+                        stderr_text = stderr.decode("utf-8")
+                    except UnicodeDecodeError:
+                        stderr_text = ""
+                    print(stdout_text, end="", flush=True)
+                    print(stderr_text, end="", flush=True, file=sys.stderr)
                 if process.returncode != 0:
-                    return False, "Process exited with errors (see above for details)"
+                    raise TorchrunException(f"Process exited with return code {process.returncode}")
                 return True, None
         except (FileNotFoundError, PermissionError, OSError) as e:
             return False, f"Failed to start subprocess: {str(e)}"
@@ -423,5 +437,7 @@ class TorchrunSingleNodeMultiGPU:
             nproc_per_node=nproc_per_node
         )
         if not success_status:
+            # This handles cases where subprocess failed to start (FileNotFoundError, etc.)
             msg = f"The `torchrun` command has crashed. \n\n[stderr]: {str(stderr)}"
             raise TorchrunException(msg)
+        # If process failed during execution (non-zero return code), TorchrunException is already raised
