@@ -176,7 +176,7 @@ class TorchrunExecutor:
                 if process.returncode != 0:
                     return False, "Process exited with errors (see above for details)"
                 return True, None
-        except (FileNotFoundError, PermissionError, OSError, ValueError, TypeError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             return False, f"Failed to start subprocess: {str(e)}"
 
 
@@ -399,7 +399,7 @@ class TorchrunSingleNodeMultiGPU:
                 if process.returncode != 0:
                     return False, "Process exited with errors (see above for details)"
                 return True, None
-        except (FileNotFoundError, PermissionError, OSError, ValueError, TypeError) as e:
+        except (FileNotFoundError, PermissionError, OSError) as e:
             return False, f"Failed to start subprocess: {str(e)}"
 
     def _ensure_torch_installed(self):
