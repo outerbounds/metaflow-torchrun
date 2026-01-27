@@ -178,13 +178,13 @@ class TorchrunExecutor:
                     print(stdout_text, end="", flush=True)
                     print(stderr_text, end="", flush=True, file=sys.stderr)
                 if process.returncode != 0:
-                    raise TorchrunException(f"Process exited with return code {process.returncode}")
+                    raise TorchrunException(f"Subprocess exited with return code {process.returncode}")
         except TorchrunException:
             # Re-raise TorchrunException as-is
             raise
         except Exception as e:
             # Wrap any other exception in TorchrunException
-            raise TorchrunException(f"Failed to execute torchrun command: {str(e)}") from e
+            raise TorchrunException(f"Subprocess execution failed: {str(e)}") from e
 
 
     def _ensure_torch_installed(self):
@@ -408,13 +408,13 @@ class TorchrunSingleNodeMultiGPU:
                     print(stdout_text, end="", flush=True)
                     print(stderr_text, end="", flush=True, file=sys.stderr)
                 if process.returncode != 0:
-                    raise TorchrunException(f"Process exited with return code {process.returncode}")
+                    raise TorchrunException(f"Subprocess exited with return code {process.returncode}")
         except TorchrunException:
             # Re-raise TorchrunException as-is
             raise
         except Exception as e:
             # Wrap any other exception in TorchrunException
-            raise TorchrunException(f"Failed to execute torchrun command: {str(e)}") from e
+            raise TorchrunException(f"Subprocess execution failed: {str(e)}") from e
 
     def _ensure_torch_installed(self):
         try:
