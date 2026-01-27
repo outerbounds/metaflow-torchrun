@@ -88,7 +88,7 @@ class TorchrunExecutor:
         if nproc_per_node is not None and 'nproc_per_node' in torchrun_args:
             # executor.run(entrypoint="script.py", nproc_per_node=4, torchrun_args={"nproc_per_node": 3}) XXX INVALID XXX
             error_msg = 'If nproc_per_node argument in current.torch.run is specified, do not set nproc_per_node in torchrun_args.'
-            return False, error_msg
+            raise TorchrunException(error_msg)
         elif nproc_per_node is None and 'nproc_per_node' not in torchrun_args:
             # executor.run(entrypoint="script.py") XXX DEFAULT = 1 XXX
             if isinstance(torchrun_args, dict):
@@ -98,7 +98,7 @@ class TorchrunExecutor:
                     idx = torchrun_args.index('nproc_per_node')
                     if len(torchrun_args) < idx + 1:
                         error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        return False, error_msg
+                        raise TorchrunException(error_msg)
                     torchrun_args[idx+1] = str(1)
                 except ValueError: 
                     torchrun_args.extend(['nproc_per_node', str(1)])
@@ -111,17 +111,17 @@ class TorchrunExecutor:
                 idx = torchrun_args.index('nproc_per_node')
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    return False, error_msg
+                    raise TorchrunException(error_msg)
                 torchrun_args[idx+1] = str(torchrun_args[idx+1])
         else:
             # executor.run(entrypoint="script.py", nproc_per_node=6, torchrun_args={...}) XXX USER OPTION = 6 XXX
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = nproc_per_node
             elif isinstance(torchrun_args, list):
-                idx = torchrun_args.get('nproc_per_node')
+                idx = torchrun_args.index('nproc_per_node')
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    return False, error_msg
+                    raise TorchrunException(error_msg)
                 torchrun_args[idx+1] = str(torchrun_args[idx+1])
     
         self._ensure_torch_installed()
@@ -149,7 +149,7 @@ class TorchrunExecutor:
         if entrypoint is not None:
             cmd.append(entrypoint)
         else:
-            raise MetaflowException(
+            raise TorchrunException(
                 "current.torchrun.run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
@@ -158,23 +158,33 @@ class TorchrunExecutor:
             cmd.extend(entrypoint_args)
 
         # Launch the Torchrun process and stream logs.
-        with subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        ) as process:
-            while process.poll() is None:
-                stdout = process.stdout.read1()
-                try:
-                    text = stdout.decode("utf-8")
-                except UnicodeDecodeError:
-                    text = ""
-                print(
-                    text, end="", flush=True
-                )
-            if process.returncode != 0:
-                return False, "Process exited with errors (see above for details)"
-            return True, None
+        try:
+            with subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            ) as process:
+                while process.poll() is None:
+                    stdout = process.stdout.read1()
+                    stderr = process.stderr.read1()
+                    try:
+                        stdout_text = stdout.decode("utf-8")
+                    except UnicodeDecodeError:
+                        stdout_text = ""
+                    try:
+                        stderr_text = stderr.decode("utf-8")
+                    except UnicodeDecodeError:
+                        stderr_text = ""
+                    print(stdout_text, end="", flush=True)
+                    print(stderr_text, end="", flush=True, file=sys.stderr)
+                if process.returncode != 0:
+                    raise TorchrunException(f"Subprocess exited with return code {process.returncode}")
+        except TorchrunException:
+            # Re-raise TorchrunException as-is
+            raise
+        except Exception as e:
+            # Wrap any other exception in TorchrunException
+            raise TorchrunException(f"Subprocess execution failed: {str(e)}") from e
 
 
     def _ensure_torch_installed(self):
@@ -250,18 +260,18 @@ class TorchrunExecutor:
         _status_notifier.running(node_index)
         _node_health_monitor = Thread(target=_monitor_node_health, args=(_status_notifier,))
         _node_health_monitor.start()
-        success_status, stderr = self._exec_cmd(
-            torchrun_args=torchrun_args,
-            entrypoint=entrypoint,
-            entrypoint_args=entrypoint_args,
-            nproc_per_node=nproc_per_node,
-        )
-        if success_status:
+        try:
+            self._exec_cmd(
+                torchrun_args=torchrun_args,
+                entrypoint=entrypoint,
+                entrypoint_args=entrypoint_args,
+                nproc_per_node=nproc_per_node,
+            )
             _status_notifier.finished(node_index)
-        else:
+        except TorchrunException:
+            # Process failed during execution
             _status_notifier.failed(node_index)
-            msg = f"The `torchrun` command running on node {node_index} has crashed. \n\n[stderr]: {str(stderr)}"
-            raise TorchrunException(msg)
+            raise
         _node_health_monitor.join()
         
         # Push results to S3
@@ -308,8 +318,7 @@ class TorchrunSingleNodeMultiGPU:
         if nproc_per_node is not None and 'nproc_per_node' in torchrun_args:
             # executor.run(entrypoint="script.py", nproc_per_node=4, torchrun_args={"nproc_per_node": 3}) XXX INVALID XXX
             error_msg = 'If nproc_per_node argument of TorchrunSingleNodeMultiGPU().run is specified, do not set nproc_per_node in torchrun_args.'
-            print(f'[current.torch.run ERROR] {error_msg}')
-            return False, error_msg
+            raise TorchrunException(error_msg)
         elif nproc_per_node is None and 'nproc_per_node' not in torchrun_args:
             # executor.run(entrypoint="script.py") XXX DEFAULT = 1 XXX
             if isinstance(torchrun_args, dict):
@@ -319,7 +328,7 @@ class TorchrunSingleNodeMultiGPU:
                     idx = torchrun_args.index('nproc_per_node')
                     if len(torchrun_args) < idx + 1:
                         error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        return False, error_msg
+                        raise TorchrunException(error_msg)
                     torchrun_args[idx+1] = str(1)
                 except ValueError:
                     torchrun_args.extend(['nproc_per_node', str(1)])
@@ -332,7 +341,7 @@ class TorchrunSingleNodeMultiGPU:
                 idx = torchrun_args.index('nproc_per_node')
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    return False, error_msg
+                    raise TorchrunException(error_msg)
                 nproc_per_node = str(torchrun_args[idx+1])
                 torchrun_args[idx+1] = nproc_per_node
         else:
@@ -340,16 +349,11 @@ class TorchrunSingleNodeMultiGPU:
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = nproc_per_node
             elif isinstance(torchrun_args, list):
-                try:
-                    idx = torchrun_args.index('nproc_per_node')
-                
-                    if len(torchrun_args) < idx+1:
-                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        return False, error_msg
-                    torchrun_args[idx+1] = str(torchrun_args[idx+1])
-                except ValueError:
-                    # torchrun_args does not contain nproc_per_node
-                    torchrun_args.extend(['nproc_per_node', str(nproc_per_node)])
+                idx = torchrun_args.index('nproc_per_node')
+                if len(torchrun_args) < idx+1:
+                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
+                    raise TorchrunException(error_msg)
+                torchrun_args[idx+1] = str(torchrun_args[idx+1])
 
         self._ensure_torch_installed()
  
@@ -369,7 +373,7 @@ class TorchrunSingleNodeMultiGPU:
         if entrypoint is not None:
             cmd.append(entrypoint)
         else:
-            raise MetaflowException(
+            raise TorchrunException(
                 "TorchrunSingleNodeMultiGPU().run(..., entrypoint=<SCRIPT>, ...) arg must be specified."
             )
         if entrypoint_args is not None and isinstance(entrypoint_args, dict):
@@ -378,23 +382,33 @@ class TorchrunSingleNodeMultiGPU:
             cmd.extend(entrypoint_args)
 
         # Launch the Torchrun process and stream logs.
-        with subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        ) as process:
-            while process.poll() is None:
-                stdout = process.stdout.read1()
-                try:
-                    text = stdout.decode("utf-8")
-                except UnicodeDecodeError:
-                    text = ""
-                print(
-                    text, end="", flush=True
-                )
-            if process.returncode != 0:
-                return False, "Process exited with errors (see above for details)"
-            return True, None
+        try:
+            with subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            ) as process:
+                while process.poll() is None:
+                    stdout = process.stdout.read1()
+                    stderr = process.stderr.read1()
+                    try:
+                        stdout_text = stdout.decode("utf-8")
+                    except UnicodeDecodeError:
+                        stdout_text = ""
+                    try:
+                        stderr_text = stderr.decode("utf-8")
+                    except UnicodeDecodeError:
+                        stderr_text = ""
+                    print(stdout_text, end="", flush=True)
+                    print(stderr_text, end="", flush=True, file=sys.stderr)
+                if process.returncode != 0:
+                    raise TorchrunException(f"Subprocess exited with return code {process.returncode}")
+        except TorchrunException:
+            # Re-raise TorchrunException as-is
+            raise
+        except Exception as e:
+            # Wrap any other exception in TorchrunException
+            raise TorchrunException(f"Subprocess execution failed: {str(e)}") from e
 
     def _ensure_torch_installed(self):
         try:
@@ -410,12 +424,10 @@ class TorchrunSingleNodeMultiGPU:
         nproc_per_node: int = None
     ) -> Union[str, None]:
 
-        success_status, stderr = self._exec_cmd(
+        self._exec_cmd(
             torchrun_args=torchrun_args,
             entrypoint=entrypoint,
             entrypoint_args=entrypoint_args,
             nproc_per_node=nproc_per_node
         )
-        if not success_status:
-            msg = f"The `torchrun` command has crashed. \n\n[stderr]: {str(stderr)}"
-            raise TorchrunException(msg)
+        # If we reach here, the command succeeded (otherwise TorchrunException was raised)
