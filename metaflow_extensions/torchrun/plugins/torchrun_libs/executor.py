@@ -122,7 +122,7 @@ class TorchrunExecutor:
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
                     raise TorchrunException(error_msg)
-                torchrun_args[idx+1] = str(nproc_per_node)
+                torchrun_args[idx+1] = str(torchrun_args[idx+1])
     
         self._ensure_torch_installed()
  
@@ -353,7 +353,7 @@ class TorchrunSingleNodeMultiGPU:
                 if len(torchrun_args) < idx+1:
                     error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
                     raise TorchrunException(error_msg)
-                torchrun_args[idx+1] = str(nproc_per_node)
+                torchrun_args[idx+1] = str(torchrun_args[idx+1])
 
         self._ensure_torch_installed()
  
