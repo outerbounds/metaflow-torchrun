@@ -94,14 +94,7 @@ class TorchrunExecutor:
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = str(1)
             elif isinstance(torchrun_args, list):
-                try:
-                    idx = torchrun_args.index('nproc_per_node')
-                    if len(torchrun_args) < idx + 1:
-                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        raise TorchrunException(error_msg)
-                    torchrun_args[idx+1] = str(1)
-                except ValueError: 
-                    torchrun_args.extend(['nproc_per_node', str(1)])
+                torchrun_args.extend(['nproc_per_node', str(1)])
         elif nproc_per_node is None and 'nproc_per_node' in torchrun_args:
             # executor.run(entrypoint="script.py", torchrun_args={"nproc_per_node": 4}) XXX USER OPTION = 4 XXX
             if isinstance(torchrun_args, dict):
@@ -118,14 +111,10 @@ class TorchrunExecutor:
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = nproc_per_node
             elif isinstance(torchrun_args, list):
-                idx = torchrun_args.index('nproc_per_node')
-                if len(torchrun_args) < idx+1:
-                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    raise TorchrunException(error_msg)
-                torchrun_args[idx+1] = str(torchrun_args[idx+1])
-    
+                torchrun_args.extend(['nproc_per_node', str(nproc_per_node)])
+
         self._ensure_torch_installed()
- 
+
         # Container to build up the command to be run in a subprocess.
         cmd = [sys.executable, "-m", "torch.distributed.run"]
 
@@ -324,14 +313,7 @@ class TorchrunSingleNodeMultiGPU:
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = str(1)
             elif isinstance(torchrun_args, list):
-                try:
-                    idx = torchrun_args.index('nproc_per_node')
-                    if len(torchrun_args) < idx + 1:
-                        error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                        raise TorchrunException(error_msg)
-                    torchrun_args[idx+1] = str(1)
-                except ValueError:
-                    torchrun_args.extend(['nproc_per_node', str(1)])
+                torchrun_args.extend(['nproc_per_node', str(1)])
         elif nproc_per_node is None and 'nproc_per_node' in torchrun_args:
             # executor.run(entrypoint="script.py", torchrun_args={"nproc_per_node": 4}) XXX USER OPTION = 4 XXX
             if isinstance(torchrun_args, dict):
@@ -349,14 +331,10 @@ class TorchrunSingleNodeMultiGPU:
             if isinstance(torchrun_args, dict):
                 torchrun_args['nproc_per_node'] = nproc_per_node
             elif isinstance(torchrun_args, list):
-                idx = torchrun_args.index('nproc_per_node')
-                if len(torchrun_args) < idx+1:
-                    error_msg = 'If torchrun_args is a list and nproc_per_node is present, it needs to have a value following it in the list.'
-                    raise TorchrunException(error_msg)
-                torchrun_args[idx+1] = str(torchrun_args[idx+1])
+                torchrun_args.extend(['nproc_per_node', str(nproc_per_node)])
 
         self._ensure_torch_installed()
- 
+
         # Container to build up the command to be run in a subprocess.
         cmd = [sys.executable, "-m", "torch.distributed.run"]
 

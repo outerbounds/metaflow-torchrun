@@ -1,7 +1,14 @@
 from metaflow.exception import MetaflowException
 
 
-class TorchNotInstalledException(MetaflowException):
+class TorchrunException(MetaflowException):
+    headline = ""
+
+    def __init__(self, cmd):
+        msg = "The torchrun command \n\n{}\n\nfailed to complete.".format(cmd)
+        super(TorchrunException, self).__init__(msg)
+
+class TorchNotInstalledException(TorchrunException):
     headline = "PyTorch not installed"
 
     def __init__(self):
@@ -34,10 +41,3 @@ class AllNodesStartupTimeoutException(MetaflowException):
         msg = "Exiting job due to time out waiting for all workers to join cluster. You can set the timeout in @torchrun(all_nodes_started_timeout=X)"
         super(AllNodesStartupTimeoutException, self).__init__(msg)
 
-
-class TorchrunException(MetaflowException):
-    headline = ""
-
-    def __init__(self, cmd):
-        msg = "The torchrun command \n\n{}\n\nfailed to complete.".format(cmd)
-        super(TorchrunException, self).__init__(msg)
