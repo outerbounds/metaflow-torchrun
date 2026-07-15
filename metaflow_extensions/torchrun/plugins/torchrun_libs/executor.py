@@ -8,6 +8,7 @@ from threading import Thread
 
 import subprocess
 from .exceptions import TorchrunException, TorchNotInstalledException
+from .streaming import stream_subprocess_output
 from .datastore import TorchrunDatastore
 from .status_notifier import (
     TaskStatusNotifier,
@@ -153,21 +154,9 @@ class TorchrunExecutor:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             ) as process:
-                while process.poll() is None:
-                    stdout = process.stdout.read1()
-                    stderr = process.stderr.read1()
-                    try:
-                        stdout_text = stdout.decode("utf-8")
-                    except UnicodeDecodeError:
-                        stdout_text = ""
-                    try:
-                        stderr_text = stderr.decode("utf-8")
-                    except UnicodeDecodeError:
-                        stderr_text = ""
-                    print(stdout_text, end="", flush=True)
-                    print(stderr_text, end="", flush=True, file=sys.stderr)
-                if process.returncode != 0:
-                    raise TorchrunException(f"Subprocess exited with return code {process.returncode}")
+                returncode = stream_subprocess_output(process, sys.stdout, sys.stderr)
+                if returncode != 0:
+                    raise TorchrunException(f"Subprocess exited with return code {returncode}")
         except TorchrunException:
             # Re-raise TorchrunException as-is
             raise
@@ -366,21 +355,9 @@ class TorchrunSingleNodeMultiGPU:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             ) as process:
-                while process.poll() is None:
-                    stdout = process.stdout.read1()
-                    stderr = process.stderr.read1()
-                    try:
-                        stdout_text = stdout.decode("utf-8")
-                    except UnicodeDecodeError:
-                        stdout_text = ""
-                    try:
-                        stderr_text = stderr.decode("utf-8")
-                    except UnicodeDecodeError:
-                        stderr_text = ""
-                    print(stdout_text, end="", flush=True)
-                    print(stderr_text, end="", flush=True, file=sys.stderr)
-                if process.returncode != 0:
-                    raise TorchrunException(f"Subprocess exited with return code {process.returncode}")
+                returncode = stream_subprocess_output(process, sys.stdout, sys.stderr)
+                if returncode != 0:
+                    raise TorchrunException(f"Subprocess exited with return code {returncode}")
         except TorchrunException:
             # Re-raise TorchrunException as-is
             raise
